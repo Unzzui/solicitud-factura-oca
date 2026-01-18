@@ -215,3 +215,12 @@ body {
 
 .border-oca-blue { border-color: var(--oca-blue); }
 .border-oca-red { border-color: var(--oca-red); }
+
+/* Footer Gradient */
+.footer-gradient {
+  background: #0b3356 !important;
+  background: -webkit-gradient(linear, left top, left bottom, from(#0b3356), to(#020a11)) !important;
+  background: linear-gradient(to bottom, #0b3356 0%, #020a11 100%) !important;
+  padding: 3em 0 !important;
+}
+

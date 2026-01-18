@@ -649,17 +649,24 @@ export default function Home() {
       </main>
 
       {/* Footer */}
-      <footer className="mt-auto border-t border-gray-200 bg-white">
-        <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4">
+      <footer
+        className="w-full text-center"
+        style={{
+          background: 'linear-gradient(to bottom, #0b3356 0%, #020a11 100%)',
+          padding: '3em 0'
+        }}
+      >
+        <div className="container mx-auto px-4 sm:p x-6">
           <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3">
             <Image
-              src="/logoOcaHorizontal.svg"
+              src="/logo_horizontal.svg"
               alt="OCA Global"
-              width={120}
-              height={32}
-              className="w-[100px] sm:w-[120px] h-auto"
+              width={180}
+              height={48}
+              className="w-[140px] sm:w-[180px] h-auto"
             />
-            <span className="text-xs text-gray-400 text-center">
+              <div className="hidden md:block h-8 w-px bg-white/30" />
+            <span className="text-xs text-white text-center">
               OCA Global Servicios Técnicos Chile S.A.
             </span>
           </div>
