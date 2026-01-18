@@ -196,16 +196,17 @@ export default function Home() {
     <div className="min-h-screen">
       {/* Header con gradiente OCA */}
       <header className="header-gradient text-white shadow-lg">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center gap-4">
+        <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4">
+          <div className="flex items-center justify-between sm:justify-start gap-4">
             <Image
               src="/logo_horizontal.svg"
               alt="OCA Global"
               width={160}
               height={45}
+              className="w-[120px] sm:w-[160px] h-auto"
             />
-            <div className="hidden sm:block h-8 w-px bg-white/30" />
-            <span className="hidden sm:block text-white/80 text-sm font-medium">
+            <div className="hidden md:block h-8 w-px bg-white/30" />
+            <span className="hidden md:block text-white/80 text-sm font-medium">
               Control de Calidad y Servicios Técnicos
             </span>
           </div>
@@ -213,45 +214,45 @@ export default function Home() {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8 max-w-5xl">
+      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-5xl">
         {/* Title Section */}
-        <div className="text-center mb-10 animate-fade-in">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">
+        <div className="text-center mb-6 sm:mb-10 animate-fade-in">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 mb-1 sm:mb-2">
             Generador de Solicitudes de Facturación
           </h1>
-          <p className="text-gray-500">
+          <p className="text-gray-500 text-sm sm:text-base">
             Genera múltiples solicitudes de factura de forma automática
           </p>
         </div>
 
         {/* Toggle de modo de ingreso */}
-        <div className="flex justify-center mb-8 animate-fade-in">
-          <div className="bg-gray-100 p-1 rounded-xl inline-flex">
+        <div className="flex justify-center mb-6 sm:mb-8 animate-fade-in">
+          <div className="bg-gray-100 p-1 rounded-xl inline-flex w-full sm:w-auto">
             <button
               onClick={() => setModoIngreso('excel')}
-              className={`px-6 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2 ${
+              className={`flex-1 sm:flex-none px-3 sm:px-6 py-2 sm:py-2.5 rounded-lg font-medium transition-all flex items-center justify-center gap-1.5 sm:gap-2 text-sm sm:text-base ${
                 modoIngreso === 'excel'
                   ? 'bg-white text-oca-blue shadow-md'
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              Cargar Excel
+              <span className="hidden xs:inline">Cargar</span> Excel
             </button>
             <button
               onClick={() => setModoIngreso('manual')}
-              className={`px-6 py-2.5 rounded-lg font-medium transition-all flex items-center gap-2 ${
+              className={`flex-1 sm:flex-none px-3 sm:px-6 py-2 sm:py-2.5 rounded-lg font-medium transition-all flex items-center justify-center gap-1.5 sm:gap-2 text-sm sm:text-base ${
                 modoIngreso === 'manual'
                   ? 'bg-white text-oca-blue shadow-md'
                   : 'text-gray-500 hover:text-gray-700'
               }`}
             >
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
-              Agregar Manual
+              <span className="hidden xs:inline">Agregar</span> Manual
             </button>
           </div>
         </div>
@@ -262,41 +263,41 @@ export default function Home() {
           {modoIngreso === 'excel' && (
             <>
               {/* Paso 1 */}
-              <div className="card p-6 animate-fade-in">
-                <div className="flex items-start gap-5">
-                  <div className="step-number step-number-active">1</div>
-                  <div className="flex-grow">
-                    <h2 className="text-xl font-semibold text-gray-800 mb-2">
+              <div className="card p-4 sm:p-6 animate-fade-in">
+                <div className="flex items-start gap-3 sm:gap-5">
+                  <div className="step-number step-number-active text-sm sm:text-lg w-8 h-8 sm:w-12 sm:h-12">1</div>
+                  <div className="flex-grow min-w-0">
+                    <h2 className="text-base sm:text-xl font-semibold text-gray-800 mb-1 sm:mb-2">
                       Descarga la plantilla de datos
                     </h2>
-                    <p className="text-gray-500 mb-5 text-sm leading-relaxed">
+                    <p className="text-gray-500 mb-3 sm:mb-5 text-xs sm:text-sm leading-relaxed">
                       Descarga el archivo Excel y completa los datos de las facturas que necesitas generar.
-                      Puedes agregar tantas filas como facturas necesites. La plantilla incluye instrucciones
-                      y un ejemplo para guiarte.
+                      <span className="hidden sm:inline"> Puedes agregar tantas filas como facturas necesites. La plantilla incluye instrucciones
+                      y un ejemplo para guiarte.</span>
                     </p>
                     <button
                       onClick={() => setShowPlantillaModal(true)}
-                      className="btn-primary inline-flex items-center gap-2"
+                      className="btn-primary inline-flex items-center gap-2 text-sm sm:text-base px-3 sm:px-6 py-2 sm:py-2.5 w-full sm:w-auto justify-center"
                     >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                       </svg>
-                      Descargar Plantilla Excel
+                      Descargar Plantilla
                     </button>
                   </div>
                 </div>
               </div>
 
               {/* Paso 2 */}
-              <div className="card p-6 animate-fade-in" style={{ animationDelay: '0.1s' }}>
-                <div className="flex items-start gap-5">
-                  <div className="step-number step-number-active">2</div>
-                  <div className="flex-grow">
-                    <h2 className="text-xl font-semibold text-gray-800 mb-2">
+              <div className="card p-4 sm:p-6 animate-fade-in" style={{ animationDelay: '0.1s' }}>
+                <div className="flex items-start gap-3 sm:gap-5">
+                  <div className="step-number step-number-active text-sm sm:text-lg w-8 h-8 sm:w-12 sm:h-12">2</div>
+                  <div className="flex-grow min-w-0">
+                    <h2 className="text-base sm:text-xl font-semibold text-gray-800 mb-1 sm:mb-2">
                       Sube el archivo con los datos
                     </h2>
-                    <p className="text-gray-500 mb-5 text-sm">
-                      Una vez completados los datos, sube el archivo aquí para generar las facturas automáticamente.
+                    <p className="text-gray-500 mb-3 sm:mb-5 text-xs sm:text-sm">
+                      Una vez completados los datos, sube el archivo aquí para generar las facturas.
                     </p>
 
                     {/* Drop zone */}
@@ -306,7 +307,7 @@ export default function Home() {
                       onDrop={handleDrop}
                       onClick={() => fileInputRef.current?.click()}
                       className={`
-                        dropzone
+                        dropzone p-4 sm:p-8
                         ${isDragging ? 'dropzone-active' : 'dropzone-default'}
                         ${isProcessing ? 'opacity-50 pointer-events-none' : ''}
                       `}
@@ -319,18 +320,19 @@ export default function Home() {
                         className="hidden"
                       />
                       <div className="flex flex-col items-center">
-                        <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 transition-colors ${isDragging ? 'bg-oca-blue text-white' : 'bg-gray-100 text-gray-400'}`}>
-                          <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className={`w-12 h-12 sm:w-16 sm:h-16 rounded-full flex items-center justify-center mb-3 sm:mb-4 transition-colors ${isDragging ? 'bg-oca-blue text-white' : 'bg-gray-100 text-gray-400'}`}>
+                          <svg className="w-6 h-6 sm:w-8 sm:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                           </svg>
                         </div>
-                        <p className="text-gray-600 font-medium mb-1">
-                          Arrastra el archivo aquí
+                        <p className="text-gray-600 font-medium mb-1 text-sm sm:text-base">
+                          <span className="hidden sm:inline">Arrastra el archivo aquí</span>
+                          <span className="sm:hidden">Toca para seleccionar</span>
                         </p>
-                        <p className="text-gray-400 text-sm">
+                        <p className="text-gray-400 text-xs sm:text-sm hidden sm:block">
                           o haz clic para seleccionar
                         </p>
-                        <span className="mt-3 inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                        <span className="mt-2 sm:mt-3 inline-flex items-center px-2 sm:px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
                           Solo archivos .xlsx
                         </span>
                       </div>
@@ -345,22 +347,21 @@ export default function Home() {
           {modoIngreso === 'manual' && (
             <div className="animate-fade-in">
               {!showFormularioManual ? (
-                <div className="card p-8 text-center">
-                  <div className="w-20 h-20 bg-oca-blue-lighter rounded-full flex items-center justify-center mx-auto mb-6">
-                    <svg className="w-10 h-10 text-oca-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="card p-5 sm:p-8 text-center">
+                  <div className="w-14 h-14 sm:w-20 sm:h-20 bg-oca-blue-lighter rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+                    <svg className="w-7 h-7 sm:w-10 sm:h-10 text-oca-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
                   </div>
-                  <h2 className="text-xl font-semibold text-gray-800 mb-2">
+                  <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2">
                     Ingreso Manual de Facturas
                   </h2>
-                  <p className="text-gray-500 mb-6 max-w-md mx-auto">
+                  <p className="text-gray-500 mb-4 sm:mb-6 max-w-md mx-auto text-sm sm:text-base">
                     Agrega facturas una por una con autocompletado de empresa, RUT y jefe de proyecto.
-                    Ideal para pocas facturas o cuando necesitas mayor control.
                   </p>
                   <button
                     onClick={() => setShowFormularioManual(true)}
-                    className="btn-primary inline-flex items-center gap-2"
+                    className="btn-primary inline-flex items-center gap-2 w-full sm:w-auto justify-center"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -387,30 +388,74 @@ export default function Home() {
 
           {/* Paso 3 - Solo visible cuando hay facturas */}
           {facturas.length > 0 && (
-            <div className="card p-6 animate-fade-in border-2 border-emerald-200">
-              <div className="flex items-start gap-5">
-                <div className="step-number step-number-success">3</div>
-                <div className="flex-grow">
-                  <div className="flex items-center justify-between mb-4">
+            <div className="card p-4 sm:p-6 animate-fade-in border-2 border-emerald-200">
+              <div className="flex items-start gap-3 sm:gap-5">
+                <div className="step-number step-number-success text-sm sm:text-lg w-8 h-8 sm:w-12 sm:h-12 hidden sm:flex">3</div>
+                <div className="flex-grow min-w-0">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
                     <div>
-                      <h2 className="text-xl font-semibold text-gray-800">
+                      <h2 className="text-base sm:text-xl font-semibold text-gray-800">
                         Listo para generar
                       </h2>
-                      <p className="text-gray-500 text-sm mt-1">
-                        Se encontraron <strong className="text-emerald-600">{facturas.length}</strong> facturas
+                      <p className="text-gray-500 text-xs sm:text-sm mt-0.5 sm:mt-1">
+                        <strong className="text-emerald-600">{facturas.length}</strong> factura(s)
                       </p>
                     </div>
-                    <div className="text-right">
+                    <div className="text-left sm:text-right bg-emerald-50 sm:bg-transparent rounded-lg p-2 sm:p-0">
                       <p className="text-xs text-gray-400 uppercase tracking-wide">Monto Total</p>
-                      <p className="text-2xl font-bold text-gray-800">
+                      <p className="text-lg sm:text-2xl font-bold text-gray-800">
                         ${totalMonto.toLocaleString('es-CL')}
                       </p>
                     </div>
                   </div>
 
-                  {/* Preview Table */}
-                  <div className="bg-slate-50 rounded-lg p-4 mb-5 max-h-64 overflow-y-auto">
-                    <table className="w-full">
+                  {/* Preview - Cards on mobile, Table on desktop */}
+                  <div className="bg-slate-50 rounded-lg p-2 sm:p-4 mb-4 sm:mb-5 max-h-64 overflow-y-auto">
+                    {/* Mobile Cards */}
+                    <div className="sm:hidden space-y-2">
+                      {facturas.map((f, i) => (
+                        <div key={i} className="bg-white rounded-lg p-3 shadow-sm border border-gray-100">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-grow min-w-0">
+                              <p className="font-medium text-gray-800 text-sm truncate">{f.empresa}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-oca-blue-lighter text-oca-blue">
+                                  {(() => {
+                                    const valor = f.hes || f.ordenCompra || '-';
+                                    return valor.replace(/^(HES|OC)\s*/i, '');
+                                  })()}
+                                </span>
+                                <span className="text-xs text-gray-400">{f.condicionPago}d</span>
+                              </div>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <p className="font-semibold text-gray-800 text-sm">${f.monto.toLocaleString('es-CL')}</p>
+                              <div className="flex gap-1 mt-1 justify-end">
+                                <button
+                                  onClick={() => handleEditarFactura(i)}
+                                  className="p-1.5 bg-amber-50 hover:bg-amber-100 rounded transition-all"
+                                >
+                                  <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                  </svg>
+                                </button>
+                                <button
+                                  onClick={() => handleEliminarFactura(i)}
+                                  className="p-1.5 bg-red-50 hover:bg-red-100 rounded transition-all"
+                                >
+                                  <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Desktop Table */}
+                    <table className="w-full hidden sm:table">
                       <thead>
                         <tr>
                           <th className="table-header">#</th>
@@ -432,7 +477,6 @@ export default function Home() {
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-oca-blue-lighter text-oca-blue">
                                 {(() => {
                                   const valor = f.hes || f.ordenCompra || '-';
-                                  // Extraer solo el número, quitando prefijos HES/OC
                                   return valor.replace(/^(HES|OC)\s*/i, '');
                                 })()}
                               </span>
@@ -474,7 +518,7 @@ export default function Home() {
                   {/* Progress bar */}
                   {isProcessing && progress > 0 && (
                     <div className="mb-4">
-                      <div className="flex justify-between text-sm text-gray-500 mb-1">
+                      <div className="flex justify-between text-xs sm:text-sm text-gray-500 mb-1">
                         <span>Generando facturas...</span>
                         <span>{progress}%</span>
                       </div>
@@ -487,11 +531,11 @@ export default function Home() {
                     </div>
                   )}
 
-                  <div className="flex flex-wrap gap-3">
+                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                     <button
                       onClick={generarTodas}
                       disabled={isProcessing}
-                      className="btn-success inline-flex items-center gap-2"
+                      className="btn-success inline-flex items-center justify-center gap-2 w-full sm:w-auto text-sm sm:text-base py-2.5 sm:py-2.5"
                     >
                       {isProcessing ? (
                         <>
@@ -506,30 +550,33 @@ export default function Home() {
                           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
-                          Generar {facturas.length} Facturas
+                          Generar {facturas.length} Factura{facturas.length > 1 ? 's' : ''}
                         </>
                       )}
                     </button>
-                    <button
-                      onClick={() => {
-                        setModoIngreso('manual');
-                        setShowFormularioManual(true);
-                      }}
-                      disabled={isProcessing}
-                      className="btn-primary inline-flex items-center gap-2"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                      </svg>
-                      Agregar Otra
-                    </button>
-                    <button
-                      onClick={() => setFacturas([])}
-                      disabled={isProcessing}
-                      className="btn-secondary"
-                    >
-                      Limpiar Todo
-                    </button>
+                    <div className="flex gap-2 sm:gap-3">
+                      <button
+                        onClick={() => {
+                          setModoIngreso('manual');
+                          setShowFormularioManual(true);
+                        }}
+                        disabled={isProcessing}
+                        className="btn-primary inline-flex items-center justify-center gap-2 flex-1 sm:flex-none text-sm sm:text-base py-2.5 sm:py-2.5"
+                      >
+                        <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        <span className="hidden sm:inline">Agregar Otra</span>
+                        <span className="sm:hidden">Agregar</span>
+                      </button>
+                      <button
+                        onClick={() => setFacturas([])}
+                        disabled={isProcessing}
+                        className="btn-secondary flex-1 sm:flex-none text-sm sm:text-base py-2.5 sm:py-2.5"
+                      >
+                        Limpiar
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -577,25 +624,25 @@ export default function Home() {
         )}
 
         {/* Info Footer */}
-        <div className="mt-12 text-center">
-          <div className="inline-flex flex-wrap justify-center items-center gap-6 text-sm text-gray-400">
+        <div className="mt-8 sm:mt-12 text-center">
+          <div className="flex flex-col sm:flex-row flex-wrap justify-center items-center gap-3 sm:gap-6 text-xs sm:text-sm text-gray-400">
             <div className="flex items-center gap-2">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
-              <span>Vencimiento: 30/60/90 días configurable</span>
+              <span>30/60/90 días</span>
             </div>
             <div className="flex items-center gap-2">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
               </svg>
-              <span>Descarga en formato ZIP</span>
+              <span>Descarga ZIP</span>
             </div>
             <div className="flex items-center gap-2">
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
-              <span>Excel o ingreso manual</span>
+              <span>Excel o manual</span>
             </div>
           </div>
         </div>
@@ -603,15 +650,16 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="mt-auto border-t border-gray-200 bg-white">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-center gap-3">
+        <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3">
             <Image
               src="/logoOcaHorizontal.svg"
               alt="OCA Global"
               width={120}
               height={32}
+              className="w-[100px] sm:w-[120px] h-auto"
             />
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-gray-400 text-center">
               OCA Global Servicios Técnicos Chile S.A.
             </span>
           </div>
