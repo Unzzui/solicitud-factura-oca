@@ -1,0 +1,217 @@
+@import "tailwindcss";
+
+:root {
+  --oca-blue: #294D6D;
+  --oca-blue-light: #4A7BA7;
+  --oca-blue-lighter: #E8F1F8;
+  --oca-blue-dark: #1E3A52;
+  --oca-red: #DE473C;
+  --oca-red-light: #FDEAEA;
+  --oca-red-dark: #C73C32;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: #f8fafc;
+}
+
+/* OCA Button Primary */
+.btn-primary {
+  background-color: var(--oca-blue);
+  color: white;
+  padding: 0.625rem 1.5rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  transition: all 0.2s ease-in-out;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-primary:hover {
+  background-color: var(--oca-blue-dark);
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+}
+
+.btn-primary:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px white, 0 0 0 4px var(--oca-blue);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* OCA Button Secondary */
+.btn-secondary {
+  background-color: white;
+  color: var(--oca-blue);
+  border: 2px solid var(--oca-blue);
+  padding: 0.625rem 1.5rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  transition: all 0.2s ease-in-out;
+}
+
+.btn-secondary:hover {
+  background-color: var(--oca-blue-lighter);
+  border-color: var(--oca-blue-dark);
+}
+
+.btn-secondary:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px white, 0 0 0 4px var(--oca-blue);
+}
+
+/* OCA Button Success */
+.btn-success {
+  background-color: #059669;
+  color: white;
+  padding: 0.625rem 1.5rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  transition: all 0.2s ease-in-out;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.btn-success:hover {
+  background-color: #047857;
+  box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+}
+
+.btn-success:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px white, 0 0 0 4px #059669;
+}
+
+.btn-success:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* OCA Card */
+.card {
+  background-color: white;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  border: 1px solid #f3f4f6;
+  transition: box-shadow 0.2s;
+}
+
+.card:hover {
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
+
+/* Animations */
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Dropzone */
+.dropzone {
+  border: 2px dashed #d1d5db;
+  border-radius: 0.75rem;
+  padding: 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.dropzone-default {
+  border-color: #d1d5db;
+}
+
+.dropzone-default:hover {
+  border-color: var(--oca-blue);
+  background-color: rgba(232, 241, 248, 0.3);
+}
+
+.dropzone-active {
+  border-color: var(--oca-blue);
+  background-color: var(--oca-blue-lighter);
+}
+
+/* Step Number */
+.step-number {
+  flex-shrink: 0;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.125rem;
+  color: white;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+}
+
+.step-number-active {
+  background: linear-gradient(to bottom right, var(--oca-blue), var(--oca-blue-dark));
+}
+
+.step-number-success {
+  background: linear-gradient(to bottom right, #10b981, #059669);
+}
+
+/* Header Gradient */
+.header-gradient {
+  background: linear-gradient(to right, var(--oca-blue), var(--oca-blue), var(--oca-blue-dark));
+}
+
+/* Table Styles */
+.table-header {
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding-bottom: 0.75rem;
+}
+
+.table-row {
+  border-top: 1px solid #f3f4f6;
+  transition: background-color 0.15s;
+}
+
+.table-row:hover {
+  background-color: #f9fafb;
+}
+
+.table-cell {
+  padding: 0.75rem 0;
+  font-size: 0.875rem;
+}
+
+/* Custom colors for Tailwind classes */
+.bg-oca-blue { background-color: var(--oca-blue); }
+.bg-oca-blue-light { background-color: var(--oca-blue-light); }
+.bg-oca-blue-lighter { background-color: var(--oca-blue-lighter); }
+.bg-oca-blue-dark { background-color: var(--oca-blue-dark); }
+.bg-oca-red { background-color: var(--oca-red); }
+.bg-oca-red-light { background-color: var(--oca-red-light); }
+.bg-oca-red-dark { background-color: var(--oca-red-dark); }
+
+.text-oca-blue { color: var(--oca-blue); }
+.text-oca-blue-light { color: var(--oca-blue-light); }
+.text-oca-blue-dark { color: var(--oca-blue-dark); }
+.text-oca-red { color: var(--oca-red); }
+.text-oca-red-dark { color: var(--oca-red-dark); }
+
+.border-oca-blue { border-color: var(--oca-blue); }
+.border-oca-red { border-color: var(--oca-red); }
