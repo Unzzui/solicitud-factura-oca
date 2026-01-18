@@ -132,7 +132,6 @@ export const JEFES_PROYECTO: string[] = [
   'Manuel Bravo',
   'Felipe Tobar',
   'Francisco Pimentel',
-  'Eduardo Verdugo Verdugo',
   'Wilson Cáceres Bustamante',
   'Jonathan Turra',
   'Lila Vives',
