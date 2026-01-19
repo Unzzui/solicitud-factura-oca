@@ -30,7 +30,7 @@ async function findAvailablePort() {
 async function main() {
   try {
     const port = await findAvailablePort();
-    console.log(`\n🚀 Iniciando servidor de desarrollo en puerto ${port}\n`);
+    console.log(`\nIniciando servidor de desarrollo en puerto ${port}\n`);
     console.log(`   Local:   http://localhost:${port}\n`);
 
     const child = spawn('npx', ['next', 'dev', '--turbopack', '-p', port.toString()], {

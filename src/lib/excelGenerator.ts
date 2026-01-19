@@ -154,6 +154,7 @@ export async function generarPlantillaDatos(config?: PlantillaConfig): Promise<B
   if (config) {
     // === PLANTILLA SIMPLIFICADA (con datos prellenados) ===
     // Solo los campos que el usuario necesita llenar - sin títulos
+    const esEnel = config.empresa.toLowerCase().includes('enel');
 
     // Headers simplificados - solo campos a llenar
     const headersSimple = [
@@ -161,7 +162,7 @@ export async function generarPlantillaDatos(config?: PlantillaConfig): Promise<B
       'Centro Costo',
       'Detalle (OT)',
       'Orden Compra',
-      'HES',
+      esEnel ? 'LCL' : 'HES',
       'Dirección',
       'Comuna',
       'Ciudad',
@@ -203,7 +204,7 @@ export async function generarPlantillaDatos(config?: PlantillaConfig): Promise<B
       '00007',
       `OT 00007 (OCA) SSTT, ${mesActual}`,
       'OC 42189111',
-      'HES 1003449089',
+      esEnel ? 'LCL 1003449089' : 'HES 1003449089',
       'Av. Presidente Riesco 5435',
       'Las Condes',
       'Santiago',
@@ -307,12 +308,13 @@ export async function generarPlantillaDatos(config?: PlantillaConfig): Promise<B
     instrucciones.addRow([]);
   }
 
+  const esEnelConfig = config?.empresa.toLowerCase().includes('enel') ?? false;
   const pasos = config ? [
     ['SOLO DEBE COMPLETAR:', ''],
     ['•', 'Centro de Costo'],
     ['•', 'Detalle (OT) - Ejemplo: OT 00007 (OCA) SSTT, Enero 2026'],
     ['•', 'Orden de Compra (OC)'],
-    ['•', 'HES'],
+    ['•', esEnelConfig ? 'LCL (Número de Conformidad)' : 'HES'],
     ['•', 'Dirección, Comuna, Ciudad'],
     ['•', 'Atención Sr. (contacto del cliente)'],
     ['•', 'Monto (solo números, sin puntos)'],
@@ -330,7 +332,7 @@ export async function generarPlantillaDatos(config?: PlantillaConfig): Promise<B
     ['5.', 'Guarde y suba el archivo'],
     ['', ''],
     ['CAMPOS OBLIGATORIOS:', ''],
-    ['•', 'Empresa, RUT, Monto, HES u OC'],
+    ['•', 'Empresa, RUT, Monto, LCL/HES u OC'],
   ];
 
   pasos.forEach((paso) => {
