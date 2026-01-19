@@ -92,6 +92,11 @@ export default function FacturaManualForm({ onAgregarFactura, onActualizarFactur
     setEmpresaSeleccionada(cliente);
     setBusquedaEmpresa(cliente.nombre);
     setCondicionPago(cliente.condicionPago);
+    // Auto-rellenar campos de ubicación
+    setDireccion(cliente.direccion || '');
+    setComuna(cliente.comuna || '');
+    setCiudad(cliente.ciudad || '');
+    setGiro(cliente.giro || '');
     setShowEmpresaDropdown(false);
   };
 
@@ -391,12 +396,14 @@ export default function FacturaManualForm({ onAgregarFactura, onActualizarFactur
               />
             </div>
             <div>
-              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">OC</label>
+              <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
+                {empresaSeleccionada?.nombre.toLowerCase().includes('enel') ? 'Conformidad' : 'OC'}
+              </label>
               <input
                 type="text"
                 value={ordenCompra}
                 onChange={(e) => setOrdenCompra(e.target.value)}
-                placeholder="12345678"
+                placeholder={empresaSeleccionada?.nombre.toLowerCase().includes('enel') ? 'Número de conformidad' : '12345678'}
                 className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-oca-blue focus:border-oca-blue text-sm sm:text-base"
               />
             </div>

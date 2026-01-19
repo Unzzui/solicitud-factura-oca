@@ -136,6 +136,11 @@ export interface PlantillaConfig {
   rutDv: string;
   jefeProy: string;
   condicionPago: 30 | 60 | 90;
+  // Nuevos campos prellenados
+  direccion?: string;
+  comuna?: string;
+  ciudad?: string;
+  giro?: string;
 }
 
 // Genera la plantilla de datos para que el usuario la llene
@@ -157,18 +162,27 @@ export async function generarPlantillaDatos(config?: PlantillaConfig): Promise<B
     const esEnel = config.empresa.toLowerCase().includes('enel');
 
     // Headers simplificados - solo campos a llenar
-    const headersSimple = [
-      'Fecha',
-      'Centro Costo',
-      'Detalle (OT)',
-      'Orden Compra',
-      esEnel ? 'LCL' : 'HES',
-      'Dirección',
-      'Comuna',
-      'Ciudad',
-      'Atención Sr.',
-      'Monto ($)'
-    ];
+    // Para Enel: Conformidad + LCL (equivalente a OC + HES)
+    // Para otros: Orden Compra + HES
+    const headersSimple = esEnel
+      ? [
+          'Fecha',
+          'Centro Costo',
+          'Detalle (OT)',
+          'Conformidad',
+          'LCL',
+          'Atención Sr.',
+          'Monto ($)'
+        ]
+      : [
+          'Fecha',
+          'Centro Costo',
+          'Detalle (OT)',
+          'Orden Compra',
+          'HES',
+          'Atención Sr.',
+          'Monto ($)'
+        ];
 
     const headerRow = ws.addRow(headersSimple);
     headerRow.height = 25;
@@ -187,40 +201,46 @@ export async function generarPlantillaDatos(config?: PlantillaConfig): Promise<B
       };
     }
 
-    // Anchos de columnas simplificados
+    // Anchos de columnas simplificados (7 columnas para todos)
+    // Enel: Conformidad + LCL | Otros: OC + HES
     ws.columns = [
       { width: 12 },  // Fecha
       { width: 12 },  // Centro Costo
-      { width: 35 },  // Detalle
-      { width: 14 },  // OC
-      { width: 14 },  // HES
-      { width: 30 },  // Dirección
-      { width: 14 },  // Comuna
-      { width: 14 },  // Ciudad
-      { width: 18 },  // Atención Sr
+      { width: 40 },  // Detalle
+      { width: 16 },  // Conformidad / OC
+      { width: 16 },  // LCL / HES
+      { width: 20 },  // Atención Sr
       { width: 14 },  // Monto
     ];
 
     // Primera fila con ejemplo
-    const exampleRow = ws.addRow([
-      fechaHoy,
-      '00007',
-      `OT 00007 (OCA) SSTT, ${mesActual}`,
-      'OC 42189111',
-      esEnel ? 'LCL 1003449089' : 'HES 1003449089',
-      'Av. Presidente Riesco 5435',
-      'Las Condes',
-      'Santiago',
-      'Luis Soto',
-      5856250
-    ]);
+    const exampleRow = esEnel
+      ? ws.addRow([
+          fechaHoy,
+          '00007',
+          `OT 00007 (OCA) SSTT, ${mesActual}`,
+          '5600012345',       // Conformidad
+          'LCL 1003449089',   // LCL
+          'Luis Soto',
+          5856250
+        ])
+      : ws.addRow([
+          fechaHoy,
+          '00007',
+          `OT 00007 (OCA) SSTT, ${mesActual}`,
+          'OC 42189111',
+          'HES 1003449089',
+          'Luis Soto',
+          5856250
+        ]);
     exampleRow.font = { color: { argb: 'FF888888' }, italic: true };
     exampleRow.alignment = { vertical: 'middle' };
     exampleRow.height = 20;
 
-    // Filas vacías para llenar
+    // Filas vacías para llenar (7 columnas para todos)
     for (let i = 0; i < 19; i++) {
-      const emptyRow = ws.addRow([fechaHoy, '', '', '', '', '', '', '', '', '']);
+      const emptyValues = [fechaHoy, '', '', '', '', '', ''];
+      const emptyRow = ws.addRow(emptyValues);
       emptyRow.height = 20;
     }
 
@@ -239,7 +259,13 @@ export async function generarPlantillaDatos(config?: PlantillaConfig): Promise<B
     configSheet.getCell('A6').value = 'division';
     configSheet.getCell('B6').value = 'Control de Calidad y Asistencia Técnica';
     configSheet.getCell('A7').value = 'giro';
-    configSheet.getCell('B7').value = '';
+    configSheet.getCell('B7').value = config.giro || '';
+    configSheet.getCell('A8').value = 'direccion';
+    configSheet.getCell('B8').value = config.direccion || '';
+    configSheet.getCell('A9').value = 'comuna';
+    configSheet.getCell('B9').value = config.comuna || '';
+    configSheet.getCell('A10').value = 'ciudad';
+    configSheet.getCell('B10').value = config.ciudad || '';
     configSheet.state = 'hidden'; // Ocultar hoja de config
 
   } else {
@@ -311,17 +337,22 @@ export async function generarPlantillaDatos(config?: PlantillaConfig): Promise<B
     instrucciones.addRow(['✓ Jefe de Proyecto:', config.jefeProy]);
     instrucciones.addRow(['✓ Condición de Pago:', `${config.condicionPago} días`]);
     instrucciones.addRow(['✓ División:', 'Control de Calidad y Asistencia Técnica']);
+    if (config.direccion) instrucciones.addRow(['✓ Dirección:', config.direccion]);
+    if (config.comuna) instrucciones.addRow(['✓ Comuna:', config.comuna]);
+    if (config.ciudad) instrucciones.addRow(['✓ Ciudad:', config.ciudad]);
+    if (config.giro) instrucciones.addRow(['✓ Giro:', config.giro]);
     instrucciones.addRow([]);
   }
 
   const esEnelConfig = config?.empresa.toLowerCase().includes('enel') ?? false;
-  const pasos = config ? [
+  // Para Enel: Conformidad + LCL (equivalente a OC + HES)
+  // Para otros: OC + HES
+  const pasos = config ? (esEnelConfig ? [
     ['SOLO DEBE COMPLETAR:', ''],
     ['•', 'Centro de Costo'],
     ['•', 'Detalle (OT) - Ejemplo: OT 00007 (OCA) SSTT, Enero 2026'],
-    ['•', 'Orden de Compra (OC)'],
-    ['•', esEnelConfig ? 'LCL (Número de Conformidad)' : 'HES'],
-    ['•', 'Dirección, Comuna, Ciudad'],
+    ['•', 'Conformidad'],
+    ['•', 'LCL'],
     ['•', 'Atención Sr. (contacto del cliente)'],
     ['•', 'Monto (solo números, sin puntos)'],
     ['', ''],
@@ -330,6 +361,19 @@ export async function generarPlantillaDatos(config?: PlantillaConfig): Promise<B
     ['2.', 'Agregue más filas si necesita más facturas'],
     ['3.', 'Guarde y suba el archivo a la aplicación'],
   ] : [
+    ['SOLO DEBE COMPLETAR:', ''],
+    ['•', 'Centro de Costo'],
+    ['•', 'Detalle (OT) - Ejemplo: OT 00007 (OCA) SSTT, Enero 2026'],
+    ['•', 'Orden de Compra (OC)'],
+    ['•', 'HES'],
+    ['•', 'Atención Sr. (contacto del cliente)'],
+    ['•', 'Monto (solo números, sin puntos)'],
+    ['', ''],
+    ['PASOS:', ''],
+    ['1.', 'Complete los campos en cada fila'],
+    ['2.', 'Agregue más filas si necesita más facturas'],
+    ['3.', 'Guarde y suba el archivo a la aplicación'],
+  ]) : [
     ['PASOS A SEGUIR:', ''],
     ['1.', 'La fila 5 tiene un ejemplo - puede editarla o eliminarla'],
     ['2.', 'Agregue una fila por cada factura'],
@@ -376,6 +420,11 @@ export async function parsearDatosExcel(buffer: ArrayBuffer): Promise<FacturaDat
   let division = '';
   let giro = '';
 
+  // Variables adicionales para datos prellenados
+  let direccion = '';
+  let comuna = '';
+  let ciudad = '';
+
   if (configSheet) {
     // Leer datos de configuración
     const getConfigValue = (row: number): string => {
@@ -395,6 +444,9 @@ export async function parsearDatosExcel(buffer: ArrayBuffer): Promise<FacturaDat
     };
     division = getConfigValue(6) || 'Control de Calidad y Asistencia Técnica';
     giro = getConfigValue(7);
+    direccion = getConfigValue(8);
+    comuna = getConfigValue(9);
+    ciudad = getConfigValue(10);
   }
 
   // Determinar si es plantilla simplificada (con config) o completa
@@ -441,11 +493,28 @@ export async function parsearDatosExcel(buffer: ArrayBuffer): Promise<FacturaDat
       };
 
       if (esPlantillaSimplificada && configData) {
-        // Plantilla simplificada: columnas reducidas
-        // Fecha(1), CentroCosto(2), Detalle(3), OC(4), HES(5), Direccion(6), Comuna(7), Ciudad(8), AtencionSr(9), Monto(10)
-        const monto = getNumber(10);
-        const ordenCompra = getValue(4);
-        const hes = getValue(5);
+        // Determinar si es Enel para saber los nombres de campos
+        const esEnel = configData.empresa.toLowerCase().includes('enel');
+
+        // Plantilla simplificada (7 columnas para todos):
+        // Fecha(1), CentroCosto(2), Detalle(3), Conformidad/OC(4), LCL/HES(5), AtencionSr(6), Monto(7)
+        // Para Enel: col 4 = Conformidad, col 5 = LCL
+        // Para otros: col 4 = OC, col 5 = HES
+
+        let ordenCompra = '';
+        let hes = '';
+        const atencionSr = getValue(6);
+        const monto = getNumber(7);
+
+        if (esEnel) {
+          // Para Enel: columna 4 es Conformidad (se guarda en ordenCompra), columna 5 es LCL (se guarda en hes)
+          ordenCompra = getValue(4); // Conformidad
+          hes = getValue(5);         // LCL
+        } else {
+          // Para otros: columna 4 es OC, columna 5 es HES
+          ordenCompra = getValue(4);
+          hes = getValue(5);
+        }
 
         // Solo procesar filas con monto
         if (monto > 0) {
@@ -457,7 +526,7 @@ export async function parsearDatosExcel(buffer: ArrayBuffer): Promise<FacturaDat
           }
 
           if (hes && hesSet.has(hes)) {
-            errores.push(`Fila ${rowNumber}: HES "${hes}" duplicado`);
+            errores.push(`Fila ${rowNumber}: ${esEnel ? 'LCL' : 'HES'} "${hes}" duplicado`);
           } else if (hes) {
             hesSet.add(hes);
           }
@@ -469,11 +538,11 @@ export async function parsearDatosExcel(buffer: ArrayBuffer): Promise<FacturaDat
             empresa: configData.empresa,
             rutNumero: configData.rutNumero,
             rutDv: configData.rutDv,
-            direccion: getValue(6),
-            comuna: getValue(7),
-            ciudad: getValue(8),
-            giro: giro,
-            atencionSr: getValue(9),
+            direccion: direccion, // Usar dato prellenado
+            comuna: comuna,       // Usar dato prellenado
+            ciudad: ciudad,       // Usar dato prellenado
+            giro: giro,          // Usar dato prellenado
+            atencionSr: atencionSr,
             jefeProy: configData.jefeProy,
             detalle: getValue(3),
             ordenCompra,

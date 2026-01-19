@@ -62,7 +62,12 @@ export default function PlantillaConfigModal({
       rutNumero: empresaSeleccionada.rut,
       rutDv: empresaSeleccionada.dv,
       jefeProy: jefeProyecto,
-      condicionPago
+      condicionPago,
+      // Nuevos campos prellenados desde el cliente
+      direccion: empresaSeleccionada.direccion,
+      comuna: empresaSeleccionada.comuna,
+      ciudad: empresaSeleccionada.ciudad,
+      giro: empresaSeleccionada.giro
     });
     resetForm();
     onClose();
@@ -134,14 +139,44 @@ export default function PlantillaConfigModal({
           )}
         </div>
 
-        {/* RUT (solo lectura) */}
+        {/* Datos de la empresa (solo lectura) */}
         {empresaSeleccionada && (
-          <div className="animate-fade-in">
-            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-1.5">
-              RUT
-            </label>
-            <div className="px-3 sm:px-4 py-2 sm:py-2.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-800 font-medium text-sm sm:text-base">
-              {empresaSeleccionada.rut}-{empresaSeleccionada.dv}
+          <div className="animate-fade-in space-y-3 p-3 sm:p-4 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-center gap-2 text-green-700 font-medium text-xs sm:text-sm">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              Datos que se llenarán automáticamente:
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm">
+              <div>
+                <span className="text-gray-500">RUT:</span>
+                <span className="ml-1 text-gray-800 font-medium">{empresaSeleccionada.rut}-{empresaSeleccionada.dv}</span>
+              </div>
+              {empresaSeleccionada.direccion && (
+                <div className="col-span-2">
+                  <span className="text-gray-500">Dirección:</span>
+                  <span className="ml-1 text-gray-800">{empresaSeleccionada.direccion}</span>
+                </div>
+              )}
+              {empresaSeleccionada.comuna && (
+                <div>
+                  <span className="text-gray-500">Comuna:</span>
+                  <span className="ml-1 text-gray-800">{empresaSeleccionada.comuna}</span>
+                </div>
+              )}
+              {empresaSeleccionada.ciudad && (
+                <div>
+                  <span className="text-gray-500">Ciudad:</span>
+                  <span className="ml-1 text-gray-800">{empresaSeleccionada.ciudad}</span>
+                </div>
+              )}
+              {empresaSeleccionada.giro && (
+                <div className="col-span-2">
+                  <span className="text-gray-500">Giro:</span>
+                  <span className="ml-1 text-gray-800">{empresaSeleccionada.giro}</span>
+                </div>
+              )}
             </div>
           </div>
         )}
