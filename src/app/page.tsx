@@ -131,11 +131,12 @@ export default function Home() {
         setProgress(Math.round(((i + 1) / facturas.length) * 100));
 
         const blob = await generarFactura(plantillaBuffer, factura);
-        // Generar nombre con nomenclatura HES/OC
+        // Generar nombre con nomenclatura LCL/HES/OC
         let identificador = `F${i + 1}`;
+        const esEnel = factura.empresa.toLowerCase().includes('enel');
         if (factura.hes) {
-          const hesNumero = factura.hes.replace(/^HES\s*/i, '');
-          identificador = `HES_${hesNumero}`;
+          const numero = factura.hes.replace(/^(HES|LCL)\s*/i, '');
+          identificador = esEnel ? `LCL_${numero}` : `HES_${numero}`;
         } else if (factura.ordenCompra) {
           const ocNumero = factura.ordenCompra.replace(/^OC\s*/i, '');
           identificador = `OC_${ocNumero}`;
@@ -421,8 +422,11 @@ export default function Home() {
                               <div className="flex items-center gap-2 mt-1">
                                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-oca-blue-lighter text-oca-blue">
                                   {(() => {
+                                    const esEnel = f.empresa.toLowerCase().includes('enel');
                                     const valor = f.hes || f.ordenCompra || '-';
-                                    return valor.replace(/^(HES|OC)\s*/i, '');
+                                    const numero = valor.replace(/^(HES|LCL|OC)\s*/i, '');
+                                    if (f.hes) return esEnel ? `LCL ${numero}` : numero;
+                                    return numero;
                                   })()}
                                 </span>
                                 <span className="text-xs text-gray-400">{f.condicionPago}d</span>
@@ -460,7 +464,7 @@ export default function Home() {
                         <tr>
                           <th className="table-header">#</th>
                           <th className="table-header">Empresa</th>
-                          <th className="table-header">HES/OC</th>
+                          <th className="table-header">LCL/HES/OC</th>
                           <th className="table-header">Pago</th>
                           <th className="table-header text-right">Monto</th>
                           <th className="table-header"></th>
@@ -476,8 +480,11 @@ export default function Home() {
                             <td className="table-cell">
                               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-oca-blue-lighter text-oca-blue">
                                 {(() => {
+                                  const esEnel = f.empresa.toLowerCase().includes('enel');
                                   const valor = f.hes || f.ordenCompra || '-';
-                                  return valor.replace(/^(HES|OC)\s*/i, '');
+                                  const numero = valor.replace(/^(HES|LCL|OC)\s*/i, '');
+                                  if (f.hes) return esEnel ? `LCL ${numero}` : numero;
+                                  return numero;
                                 })()}
                               </span>
                             </td>

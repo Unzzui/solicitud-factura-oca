@@ -102,10 +102,17 @@ export async function generarFactura(
     : '';
   setCellValue(ws, 'D35', ocFormateada);
 
-  // Formatear HES con prefijo si no lo tiene
-  const hesFormateada = data.hes
-    ? (data.hes.toUpperCase().startsWith('HES') ? data.hes : `HES ${data.hes}`)
-    : '';
+  // Formatear HES/LCL con prefijo si no lo tiene (LCL para Enel, HES para otros)
+  const esEnel = data.empresa.toLowerCase().includes('enel');
+  let hesFormateada = '';
+  if (data.hes) {
+    const numero = data.hes.replace(/^(HES|LCL)\s*/i, '').trim();
+    if (esEnel) {
+      hesFormateada = data.hes.toUpperCase().startsWith('LCL') ? data.hes : `LCL ${numero}`;
+    } else {
+      hesFormateada = data.hes.toUpperCase().startsWith('HES') ? data.hes : `HES ${numero}`;
+    }
+  }
   setCellValue(ws, 'D36', hesFormateada);
 
   setCellValue(ws, 'D37', data.contacto ? `CONTACTO ${data.contacto}` : '');
