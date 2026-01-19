@@ -30,8 +30,7 @@ async function findAvailablePort() {
 async function main() {
   try {
     const port = await findAvailablePort();
-    console.log(`\n🚀 Iniciando servidor de producción en puerto ${port}\n`);
-    console.log(`   Local:   http://localhost:${port}\n`);
+  
 
     const child = spawn('npx', ['next', 'start', '-p', port.toString()], {
       stdio: 'inherit',

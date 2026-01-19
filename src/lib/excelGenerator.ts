@@ -171,18 +171,21 @@ export async function generarPlantillaDatos(config?: PlantillaConfig): Promise<B
     ];
 
     const headerRow = ws.addRow(headersSimple);
-    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
-    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF294D6D' } };
-    headerRow.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
     headerRow.height = 25;
-    headerRow.eachCell((cell) => {
+
+    // Aplicar estilos solo a las celdas con datos (columnas 1 a headersSimple.length)
+    for (let col = 1; col <= headersSimple.length; col++) {
+      const cell = headerRow.getCell(col);
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF294D6D' } };
+      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
       cell.border = {
         top: { style: 'thin', color: { argb: 'FF294D6D' } },
         bottom: { style: 'thin', color: { argb: 'FF294D6D' } },
         left: { style: 'thin', color: { argb: 'FF294D6D' } },
         right: { style: 'thin', color: { argb: 'FF294D6D' } }
       };
-    });
+    }
 
     // Anchos de columnas simplificados
     ws.columns = [
@@ -250,18 +253,21 @@ export async function generarPlantillaDatos(config?: PlantillaConfig): Promise<B
     ];
 
     const headerRow = ws.addRow(headers);
-    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
-    headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF294D6D' } };
-    headerRow.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
     headerRow.height = 25;
-    headerRow.eachCell((cell) => {
+
+    // Aplicar estilos solo a las celdas con datos (columnas 1 a headers.length)
+    for (let col = 1; col <= headers.length; col++) {
+      const cell = headerRow.getCell(col);
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF294D6D' } };
+      cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
       cell.border = {
         top: { style: 'thin', color: { argb: 'FF294D6D' } },
         bottom: { style: 'thin', color: { argb: 'FF294D6D' } },
         left: { style: 'thin', color: { argb: 'FF294D6D' } },
         right: { style: 'thin', color: { argb: 'FF294D6D' } }
       };
-    });
+    }
 
     ws.columns = [
       { width: 12 }, { width: 12 }, { width: 35 }, { width: 40 }, { width: 11 }, { width: 4 },
