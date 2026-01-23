@@ -141,7 +141,16 @@ export default function Home() {
           const ocNumero = factura.ordenCompra.replace(/^OC\s*/i, '');
           identificador = `OC_${ocNumero}`;
         }
-        const nombreArchivo = `Solicitud_Factura_${identificador}.xlsx`;
+        // Abreviar nombre de empresa para evitar caracteres especiales
+        let empresaAbrev = factura.empresa;
+        if (factura.empresa.toLowerCase().includes('compañía general de electricidad')) {
+          empresaAbrev = 'CGE';
+        } else if (esEnel) {
+          empresaAbrev = 'ENEL';
+        } else {
+          empresaAbrev = factura.empresa.substring(0, 15).replace(/[^a-zA-Z0-9]/g, '_');
+        }
+        const nombreArchivo = `Solicitud_Factura_${empresaAbrev}_${identificador}.xlsx`;
 
         zip.file(nombreArchivo, blob);
       }
