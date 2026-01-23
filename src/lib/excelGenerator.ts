@@ -410,7 +410,6 @@ export async function parsearDatosExcel(buffer: ArrayBuffer): Promise<FacturaDat
   if (!ws) throw new Error('No se encontró la hoja "Datos Facturas"');
 
   const facturas: FacturaData[] = [];
-  const ordenesCompra = new Set<string>();
   const hesSet = new Set<string>();
   const errores: string[] = [];
 
@@ -518,13 +517,7 @@ export async function parsearDatosExcel(buffer: ArrayBuffer): Promise<FacturaDat
 
         // Solo procesar filas con monto
         if (monto > 0) {
-          // Validar duplicados
-          if (ordenCompra && ordenesCompra.has(ordenCompra)) {
-            errores.push(`Fila ${rowNumber}: OC "${ordenCompra}" duplicada`);
-          } else if (ordenCompra) {
-            ordenesCompra.add(ordenCompra);
-          }
-
+          // Validar duplicados de HES
           if (hes && hesSet.has(hes)) {
             errores.push(`Fila ${rowNumber}: ${esEnel ? 'LCL' : 'HES'} "${hes}" duplicado`);
           } else if (hes) {
@@ -558,15 +551,6 @@ export async function parsearDatosExcel(buffer: ArrayBuffer): Promise<FacturaDat
         if (getValue(4)) { // Si tiene empresa
           const ordenCompra = getValue(14);
           const hes = getValue(15);
-
-          // Validar duplicados de OC
-          if (ordenCompra) {
-            if (ordenesCompra.has(ordenCompra)) {
-              errores.push(`Fila ${rowNumber}: OC "${ordenCompra}" duplicada`);
-            } else {
-              ordenesCompra.add(ordenCompra);
-            }
-          }
 
           // Validar duplicados de HES
           if (hes) {

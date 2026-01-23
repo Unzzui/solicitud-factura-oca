@@ -150,7 +150,7 @@ export default function Home() {
       const zipBlob = await zip.generateAsync({ type: 'blob' });
 
       const fecha = new Date().toISOString().split('T')[0];
-      saveAs(zipBlob, `Facturas_OCA_${fecha}.zip`);
+      saveAs(zipBlob, `Solicitud_Factura_OCA_${fecha}.zip`);
 
       setStatus(`${facturas.length} facturas generadas exitosamente`);
       setFacturas([]);
