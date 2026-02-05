@@ -32,6 +32,15 @@ export interface FacturaData {
 
   // Condición de pago (días)
   condicionPago: number;
+
+  // Empresa OCA emisora
+  empresaOCA?: {
+    id: 'ensayos' | 'servicios_tecnicos';
+    nombre: string;
+    rut: string;
+    dv: string;
+    direccion: string;
+  };
 }
 
 // Calcula fecha de vencimiento según días de condición de pago
@@ -120,6 +129,14 @@ export async function generarFactura(
   // Monto
   setCellValue(ws, 'D42', data.monto);
 
+  // Empresa OCA emisora (D15)
+  if (data.empresaOCA) {
+    setCellValue(ws, 'D15', data.empresaOCA.nombre);
+  } else {
+    // Por defecto: Servicios Técnicos
+    setCellValue(ws, 'D15', 'OCA GLOBAL SERVICIOS TECNICOS CHILE, S.A.');
+  }
+
   // Fecha de emisión del documento
   setCellValue(ws, 'L3', new Date());
 
@@ -141,6 +158,20 @@ export interface PlantillaConfig {
   comuna?: string;
   ciudad?: string;
   giro?: string;
+  // Empresa OCA emisora
+  empresaOCA?: {
+    id: 'ensayos' | 'servicios_tecnicos';
+    nombre: string;
+    rut: string;
+    dv: string;
+    direccion: string;
+  };
+}
+
+// Resultado del parseo de Excel con configuración
+export interface ResultadoParseoExcel {
+  facturas: FacturaData[];
+  configuracion: PlantillaConfig | null;
 }
 
 // Genera la plantilla de datos para que el usuario la llene
@@ -266,6 +297,17 @@ export async function generarPlantillaDatos(config?: PlantillaConfig): Promise<B
     configSheet.getCell('B9').value = config.comuna || '';
     configSheet.getCell('A10').value = 'ciudad';
     configSheet.getCell('B10').value = config.ciudad || '';
+    // Datos de empresa OCA emisora
+    configSheet.getCell('A11').value = 'empresaOCA_id';
+    configSheet.getCell('B11').value = config.empresaOCA?.id || 'servicios_tecnicos';
+    configSheet.getCell('A12').value = 'empresaOCA_nombre';
+    configSheet.getCell('B12').value = config.empresaOCA?.nombre || 'OCA GLOBAL SERVICIOS TECNICOS CHILE, S.A.';
+    configSheet.getCell('A13').value = 'empresaOCA_rut';
+    configSheet.getCell('B13').value = config.empresaOCA?.rut || '77851467';
+    configSheet.getCell('A14').value = 'empresaOCA_dv';
+    configSheet.getCell('B14').value = config.empresaOCA?.dv || '2';
+    configSheet.getCell('A15').value = 'empresaOCA_direccion';
+    configSheet.getCell('B15').value = config.empresaOCA?.direccion || 'PEDRO DE VALDIVIA 291 90 PROVIDENCIA, Chile';
     configSheet.state = 'hidden'; // Ocultar hoja de config
 
   } else {
@@ -330,8 +372,20 @@ export async function generarPlantillaDatos(config?: PlantillaConfig): Promise<B
   instrucciones.addRow([]);
 
   if (config) {
+    // Mostrar empresa OCA emisora primero
+    instrucciones.addRow(['EMPRESA OCA EMISORA:', '']);
+    instrucciones.getRow(3).font = { bold: true, color: { argb: 'FF294D6D' } };
+    const nombreOCA = config.empresaOCA?.nombre || 'OCA GLOBAL SERVICIOS TECNICOS CHILE, S.A.';
+    const rutOCA = config.empresaOCA ? `${config.empresaOCA.rut}-${config.empresaOCA.dv}` : '77851467-2';
+    const direccionOCA = config.empresaOCA?.direccion || 'PEDRO DE VALDIVIA 291 90 PROVIDENCIA, Chile';
+    instrucciones.addRow(['Nombre:', nombreOCA]);
+    instrucciones.addRow(['NIF:', `RUT ${rutOCA}`]);
+    instrucciones.addRow(['Domicilio:', direccionOCA]);
+    instrucciones.addRow([]);
+
     instrucciones.addRow(['DATOS YA CONFIGURADOS (no necesita ingresarlos):', '']);
-    instrucciones.getRow(3).font = { bold: true, color: { argb: 'FF28A745' } };
+    const rowDatosConfig = instrucciones.lastRow?.number || 8;
+    instrucciones.getRow(rowDatosConfig).font = { bold: true, color: { argb: 'FF28A745' } };
     instrucciones.addRow(['✓ Empresa:', config.empresa]);
     instrucciones.addRow(['✓ RUT:', `${config.rutNumero}-${config.rutDv}`]);
     instrucciones.addRow(['✓ Jefe de Proyecto:', config.jefeProy]);
@@ -401,8 +455,16 @@ export async function generarPlantillaDatos(config?: PlantillaConfig): Promise<B
   });
 }
 
+// Detecta si el centro de costo corresponde a OT 7 (formato: 7, 07, 007, 00007, etc.)
+function esOT7(centroCosto: string): boolean {
+  if (!centroCosto) return false;
+  // Verifica si el centro de costo es 7 (con ceros a la izquierda opcionales)
+  const numero = centroCosto.trim().replace(/^0+/, '');
+  return numero === '7';
+}
+
 // Parsea el archivo de datos subido por el usuario
-export async function parsearDatosExcel(buffer: ArrayBuffer): Promise<FacturaData[]> {
+export async function parsearDatosExcel(buffer: ArrayBuffer): Promise<ResultadoParseoExcel> {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer);
 
@@ -411,6 +473,7 @@ export async function parsearDatosExcel(buffer: ArrayBuffer): Promise<FacturaDat
 
   const facturas: FacturaData[] = [];
   const hesSet = new Set<string>();
+  const ocSet = new Set<string>();
   const errores: string[] = [];
 
   // Verificar si hay datos de configuración prellenados
@@ -434,12 +497,26 @@ export async function parsearDatosExcel(buffer: ArrayBuffer): Promise<FacturaDat
       }
     };
 
+    // Leer datos de empresa OCA emisora
+    const empresaOCAId = getConfigValue(11) as 'ensayos' | 'servicios_tecnicos' || 'servicios_tecnicos';
+    const empresaOCANombre = getConfigValue(12) || 'OCA GLOBAL SERVICIOS TECNICOS CHILE, S.A.';
+    const empresaOCARut = getConfigValue(13) || '77851467';
+    const empresaOCADv = getConfigValue(14) || '2';
+    const empresaOCADireccion = getConfigValue(15) || 'PEDRO DE VALDIVIA 291 90 PROVIDENCIA, Chile';
+
     configData = {
       empresa: getConfigValue(1),
       rutNumero: getConfigValue(2),
       rutDv: getConfigValue(3),
       jefeProy: getConfigValue(4),
-      condicionPago: (parseInt(getConfigValue(5)) || 30) as 30 | 60 | 90
+      condicionPago: (parseInt(getConfigValue(5)) || 30) as 30 | 60 | 90,
+      empresaOCA: {
+        id: empresaOCAId,
+        nombre: empresaOCANombre,
+        rut: empresaOCARut,
+        dv: empresaOCADv,
+        direccion: empresaOCADireccion
+      }
     };
     division = getConfigValue(6) || 'Control de Calidad y Asistencia Técnica';
     giro = getConfigValue(7);
@@ -517,11 +594,22 @@ export async function parsearDatosExcel(buffer: ArrayBuffer): Promise<FacturaDat
 
         // Solo procesar filas con monto
         if (monto > 0) {
-          // Validar duplicados de HES
+          const centroCostoVal = getValue(2);
+
+          // Validar HES/LCL duplicados - SIEMPRE aplica (incluso para OT 7)
           if (hes && hesSet.has(hes)) {
             errores.push(`Fila ${rowNumber}: ${esEnel ? 'LCL' : 'HES'} "${hes}" duplicado`);
           } else if (hes) {
             hesSet.add(hes);
+          }
+
+          // Validar OC/Conformidad duplicados - NO aplica para OT 7 (centro costo 7)
+          if (!esOT7(centroCostoVal)) {
+            if (ordenCompra && ocSet.has(ordenCompra)) {
+              errores.push(`Fila ${rowNumber}: ${esEnel ? 'Conformidad' : 'OC'} "${ordenCompra}" duplicado`);
+            } else if (ordenCompra) {
+              ocSet.add(ordenCompra);
+            }
           }
 
           facturas.push({
@@ -542,7 +630,8 @@ export async function parsearDatosExcel(buffer: ArrayBuffer): Promise<FacturaDat
             hes,
             contacto: '',
             monto,
-            condicionPago: configData.condicionPago
+            condicionPago: configData.condicionPago,
+            empresaOCA: configData.empresaOCA // Empresa OCA emisora
           });
         }
       } else {
@@ -551,13 +640,25 @@ export async function parsearDatosExcel(buffer: ArrayBuffer): Promise<FacturaDat
         if (getValue(4)) { // Si tiene empresa
           const ordenCompra = getValue(14);
           const hes = getValue(15);
+          const centroCostoCompleto = getValue(2);
 
-          // Validar duplicados de HES
+          // Validar HES duplicados - SIEMPRE aplica (incluso para OT 7)
           if (hes) {
             if (hesSet.has(hes)) {
               errores.push(`Fila ${rowNumber}: HES "${hes}" duplicado`);
             } else {
               hesSet.add(hes);
+            }
+          }
+
+          // Validar OC duplicados - NO aplica para OT 7 (centro costo 7)
+          if (!esOT7(centroCostoCompleto)) {
+            if (ordenCompra) {
+              if (ocSet.has(ordenCompra)) {
+                errores.push(`Fila ${rowNumber}: OC "${ordenCompra}" duplicado`);
+              } else {
+                ocSet.add(ordenCompra);
+              }
             }
           }
 
@@ -608,5 +709,8 @@ export async function parsearDatosExcel(buffer: ArrayBuffer): Promise<FacturaDat
     throw new Error(errores.join('\n'));
   }
 
-  return facturas;
+  return {
+    facturas,
+    configuracion: configData
+  };
 }

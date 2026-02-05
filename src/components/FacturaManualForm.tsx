@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { CLIENTES, JEFES_PROYECTO, CONDICIONES_PAGO, Cliente } from '@/lib/data';
+import { CLIENTES, JEFES_PROYECTO, CONDICIONES_PAGO, Cliente, EMPRESAS_OCA, EmpresaOCA, DIVISIONES } from '@/lib/data';
 import { FacturaData } from '@/lib/excelGenerator';
 
 interface FacturaManualFormProps {
@@ -19,9 +19,14 @@ export default function FacturaManualForm({ onAgregarFactura, onActualizarFactur
   const [busquedaEmpresa, setBusquedaEmpresa] = useState('');
   const [showEmpresaDropdown, setShowEmpresaDropdown] = useState(false);
 
+  const[showDivisionDropdown, setShowDivisionDropdown] = useState(false);
+
   const [jefeProyecto, setJefeProyecto] = useState('');
   const [busquedaJefe, setBusquedaJefe] = useState('');
   const [showJefeDropdown, setShowJefeDropdown] = useState(false);
+
+  // Empresa OCA emisora - por defecto Servicios Técnicos
+  const [empresaOCA, setEmpresaOCA] = useState<EmpresaOCA>(EMPRESAS_OCA[0]);
 
   // Estados para los demás campos
   const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
@@ -70,6 +75,13 @@ export default function FacturaManualForm({ onAgregarFactura, onActualizarFactur
       setContacto(facturaEditar.contacto);
       setMonto(facturaEditar.monto.toLocaleString('es-CL'));
       setCondicionPago(facturaEditar.condicionPago as 30 | 60 | 90);
+      // Cargar empresa OCA si existe
+      if (facturaEditar.empresaOCA) {
+        const ocaEncontrada = EMPRESAS_OCA.find(e => e.id === facturaEditar.empresaOCA?.id);
+        if (ocaEncontrada) {
+          setEmpresaOCA(ocaEncontrada);
+        }
+      }
     }
   }, [facturaEditar]);
 
@@ -98,6 +110,7 @@ export default function FacturaManualForm({ onAgregarFactura, onActualizarFactur
     setCiudad(cliente.ciudad || '');
     setGiro(cliente.giro || '');
     setShowEmpresaDropdown(false);
+    setShowDivisionDropdown(false);
   };
 
   const handleSelectJefe = (jefe: string) => {
@@ -131,7 +144,14 @@ export default function FacturaManualForm({ onAgregarFactura, onActualizarFactur
       hes,
       contacto,
       monto: parseInt(monto.replace(/[^\d]/g, ''), 10),
-      condicionPago
+      condicionPago,
+      empresaOCA: {
+        id: empresaOCA.id,
+        nombre: empresaOCA.nombre,
+        rut: empresaOCA.rut,
+        dv: empresaOCA.dv,
+        direccion: empresaOCA.direccion
+      }
     };
 
     if (modoEdicion && onActualizarFactura) {
@@ -155,6 +175,7 @@ export default function FacturaManualForm({ onAgregarFactura, onActualizarFactur
     setHes('');
     setContacto('');
     setMonto('');
+    // No resetear empresaOCA para mantener la selección entre facturas
   };
 
   const puedeAgregar = empresaSeleccionada && jefeProyecto && monto;
@@ -192,6 +213,36 @@ export default function FacturaManualForm({ onAgregarFactura, onActualizarFactur
 
       {/* Formulario */}
       <form onSubmit={handleSubmit} className="p-4 sm:p-6">
+        {/* Selector de Empresa OCA emisora */}
+        <div className="mb-4 sm:mb-6">
+          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+            Empresa OCA emisora
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {EMPRESAS_OCA.map((oca) => (
+              <button
+                key={oca.id}
+                type="button"
+                onClick={() => setEmpresaOCA(oca)}
+                className={`p-3 rounded-lg border-2 transition-all text-left ${
+                  empresaOCA.id === oca.id
+                    ? 'border-oca-blue bg-oca-blue-lighter'
+                    : 'border-gray-200 hover:border-gray-300 bg-white'
+                }`}
+              >
+                <span className={`block font-medium text-sm ${
+                  empresaOCA.id === oca.id ? 'text-oca-blue' : 'text-gray-800'
+                }`}>
+                  {oca.nombreCorto}
+                </span>
+                <span className="block text-xs text-gray-500 mt-0.5">
+                  RUT: {oca.rut}-{oca.dv}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Sección: Datos principales */}
         <div className="mb-4 sm:mb-6">
           <h4 className="text-xs sm:text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 sm:mb-4 flex items-center gap-2">
@@ -375,15 +426,40 @@ export default function FacturaManualForm({ onAgregarFactura, onActualizarFactur
                 className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-oca-blue focus:border-oca-blue text-sm sm:text-base"
               />
             </div>
-            <div className="col-span-2 sm:col-span-1">
+            <div className="col-span-2 sm:col-span-1 relative">
               <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">División</label>
-              <input
-                type="text"
-                value={division}
-                onChange={(e) => setDivision(e.target.value)}
-                placeholder="División"
-                className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-oca-blue focus:border-oca-blue text-sm sm:text-base"
-              />
+              <button
+                type="button"
+                onClick={() => setShowDivisionDropdown(!showDivisionDropdown)}
+                className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-oca-blue focus:border-oca-blue text-sm sm:text-base text-left bg-white flex items-center justify-between"
+              >
+                <span className={division ? 'text-gray-800' : 'text-gray-400'}>
+                  {division || 'Seleccionar división'}
+                </span>
+                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {showDivisionDropdown && (
+                <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                  {DIVISIONES.map((div) => (
+                    <button
+                      key={div.codigo}
+                      type="button"
+                      onClick={() => {
+                        setDivision(div.nombre);
+                        setShowDivisionDropdown(false);
+                      }}
+                      className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 text-left hover:bg-oca-blue-lighter transition-colors ${
+                        division === div.nombre ? 'bg-oca-blue-lighter' : ''
+                      }`}
+                    >
+                      <span className="font-medium text-gray-800 text-sm">{div.nombre}</span>
+                      <span className="block text-xs text-gray-500">{div.codigo}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="col-span-2 sm:col-span-3">
               <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Detalle (OT)</label>
@@ -507,7 +583,7 @@ export default function FacturaManualForm({ onAgregarFactura, onActualizarFactur
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               )}
             </svg>
-            {modoEdicion ? 'Guardar Cambios' : 'Agregar Factura'}
+            {modoEdicion ? 'Guardar Cambios' : 'Agregar Solicitud de Factura'}
           </button>
           {!modoEdicion && (
             <button

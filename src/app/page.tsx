@@ -9,7 +9,8 @@ import {
   generarPlantillaDatos,
   parsearDatosExcel,
   FacturaData,
-  PlantillaConfig
+  PlantillaConfig,
+  ResultadoParseoExcel
 } from '@/lib/excelGenerator';
 import PlantillaConfigModal from '@/components/PlantillaConfigModal';
 import FacturaManualForm from '@/components/FacturaManualForm';
@@ -28,6 +29,7 @@ export default function Home() {
   const [modoIngreso, setModoIngreso] = useState<ModoIngreso>('excel');
   const [showFormularioManual, setShowFormularioManual] = useState(false);
   const [facturaEditandoIndex, setFacturaEditandoIndex] = useState<number | null>(null);
+  const [configuracionExcel, setConfiguracionExcel] = useState<PlantillaConfig | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -100,17 +102,24 @@ export default function Home() {
 
     try {
       const buffer = await file.arrayBuffer();
-      const datos = await parsearDatosExcel(buffer);
+      const resultado = await parsearDatosExcel(buffer);
 
-      if (datos.length === 0) {
+      if (resultado.facturas.length === 0) {
         throw new Error('No se encontraron datos en el archivo');
       }
 
-      setFacturas(datos);
-      setStatus(`Se encontraron ${datos.length} facturas para generar`);
+      setFacturas(resultado.facturas);
+      setConfiguracionExcel(resultado.configuracion);
+
+      // Mostrar mensaje con info de empresa OCA si está configurada
+      const empresaOCAInfo = resultado.configuracion?.empresaOCA?.nombre
+        ? ` (Emisor: ${resultado.configuracion.empresaOCA.id === 'ensayos' ? 'OCA Ensayos' : 'Servicios Técnicos'})`
+        : '';
+      setStatus(`Se encontraron ${resultado.facturas.length} facturas para generar${empresaOCAInfo}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error procesando archivo');
       setFacturas([]);
+      setConfiguracionExcel(null);
     } finally {
       setIsProcessing(false);
     }
@@ -163,6 +172,7 @@ export default function Home() {
 
       setStatus(`${facturas.length} facturas generadas exitosamente`);
       setFacturas([]);
+      setConfiguracionExcel(null);
       setProgress(0);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error generando facturas');
@@ -230,9 +240,6 @@ export default function Home() {
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 mb-1 sm:mb-2">
             Generador de Solicitudes de Facturación
           </h1>
-          <p className="text-gray-500 text-sm sm:text-base">
-            Genera múltiples solicitudes de factura de forma automática
-          </p>
         </div>
 
         {/* Toggle de modo de ingreso */}
@@ -281,7 +288,7 @@ export default function Home() {
                       Descarga la plantilla de datos
                     </h2>
                     <p className="text-gray-500 mb-3 sm:mb-5 text-xs sm:text-sm leading-relaxed">
-                      Descarga el archivo Excel y completa los datos de las facturas que necesitas generar.
+                      Descarga el archivo Excel y completa los datos de las solicitudes de facturas que necesitas generar.
                       <span className="hidden sm:inline"> Puedes agregar tantas filas como facturas necesites. La plantilla incluye instrucciones
                       y un ejemplo para guiarte.</span>
                     </p>
@@ -376,7 +383,7 @@ export default function Home() {
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
-                    Agregar Nueva Factura
+                    Agregar Nueva Solicitud de Factura
                   </button>
 
                   {facturas.length > 0 && (
@@ -418,6 +425,24 @@ export default function Home() {
                       </p>
                     </div>
                   </div>
+
+                  {/* Info de empresa OCA emisora */}
+                  {configuracionExcel?.empresaOCA && (
+                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <svg className="w-4 h-4 text-oca-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                        <span className="text-xs sm:text-sm font-medium text-oca-blue">Empresa emisora:</span>
+                        <span className="text-xs sm:text-sm text-gray-700">
+                          {configuracionExcel.empresaOCA.id === 'ensayos' ? 'OCA Ensayos' : 'Servicios Técnicos'}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          (RUT {configuracionExcel.empresaOCA.rut}-{configuracionExcel.empresaOCA.dv})
+                        </span>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Preview - Cards on mobile, Table on desktop */}
                   <div className="bg-slate-50 rounded-lg p-2 sm:p-4 mb-4 sm:mb-5 max-h-64 overflow-y-auto">
@@ -586,7 +611,10 @@ export default function Home() {
                         <span className="sm:hidden">Agregar</span>
                       </button>
                       <button
-                        onClick={() => setFacturas([])}
+                        onClick={() => {
+                          setFacturas([]);
+                          setConfiguracionExcel(null);
+                        }}
                         disabled={isProcessing}
                         className="btn-secondary flex-1 sm:flex-none text-sm sm:text-base py-2.5 sm:py-2.5"
                       >
@@ -639,29 +667,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* Info Footer */}
-        <div className="mt-8 sm:mt-12 text-center">
-          <div className="flex flex-col sm:flex-row flex-wrap justify-center items-center gap-3 sm:gap-6 text-xs sm:text-sm text-gray-400">
-            <div className="flex items-center gap-2">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-              <span>30/60/90 días</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-              </svg>
-              <span>Descarga ZIP</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              <span>Excel o manual</span>
-            </div>
-          </div>
-        </div>
       </main>
 
       {/* Footer */}

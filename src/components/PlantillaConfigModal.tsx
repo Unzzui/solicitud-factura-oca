@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import Modal from './Modal';
-import { CLIENTES, JEFES_PROYECTO, CONDICIONES_PAGO, Cliente } from '@/lib/data';
+import { CLIENTES, JEFES_PROYECTO, CONDICIONES_PAGO, Cliente, EMPRESAS_OCA, EmpresaOCA } from '@/lib/data';
 import { PlantillaConfig } from '@/lib/excelGenerator';
 
 interface PlantillaConfigModalProps {
@@ -25,6 +25,8 @@ export default function PlantillaConfigModal({
   const [busquedaJefe, setBusquedaJefe] = useState('');
   const [showEmpresaDropdown, setShowEmpresaDropdown] = useState(false);
   const [showJefeDropdown, setShowJefeDropdown] = useState(false);
+  // Empresa OCA emisora - por defecto Servicios Técnicos
+  const [empresaOCA, setEmpresaOCA] = useState<EmpresaOCA>(EMPRESAS_OCA[0]);
 
   const empresasFiltradas = useMemo(() => {
     if (!busquedaEmpresa) return CLIENTES;
@@ -67,7 +69,15 @@ export default function PlantillaConfigModal({
       direccion: empresaSeleccionada.direccion,
       comuna: empresaSeleccionada.comuna,
       ciudad: empresaSeleccionada.ciudad,
-      giro: empresaSeleccionada.giro
+      giro: empresaSeleccionada.giro,
+      // Empresa OCA emisora
+      empresaOCA: {
+        id: empresaOCA.id,
+        nombre: empresaOCA.nombre,
+        rut: empresaOCA.rut,
+        dv: empresaOCA.dv,
+        direccion: empresaOCA.direccion
+      }
     });
     resetForm();
     onClose();
@@ -85,6 +95,7 @@ export default function PlantillaConfigModal({
     setCondicionPago(30);
     setBusquedaEmpresa('');
     setBusquedaJefe('');
+    setEmpresaOCA(EMPRESAS_OCA[0]); // Reset a Servicios Técnicos por defecto
   };
 
   const puedeDescargar = empresaSeleccionada && jefeProyecto;
@@ -92,7 +103,37 @@ export default function PlantillaConfigModal({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Configurar Plantilla">
       <div className="space-y-4 sm:space-y-5">
-        {/* Selector de Empresa */}
+        {/* Selector de Empresa OCA emisora */}
+        <div>
+          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-1.5">
+            Empresa OCA emisora
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            {EMPRESAS_OCA.map((oca) => (
+              <button
+                key={oca.id}
+                type="button"
+                onClick={() => setEmpresaOCA(oca)}
+                className={`p-3 rounded-lg border-2 transition-all text-left ${
+                  empresaOCA.id === oca.id
+                    ? 'border-oca-blue bg-oca-blue-lighter'
+                    : 'border-gray-200 hover:border-gray-300 bg-white'
+                }`}
+              >
+                <span className={`block font-medium text-sm ${
+                  empresaOCA.id === oca.id ? 'text-oca-blue' : 'text-gray-800'
+                }`}>
+                  {oca.nombreCorto}
+                </span>
+                <span className="block text-xs text-gray-500 mt-0.5">
+                  RUT: {oca.rut}-{oca.dv}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Selector de Empresa a facturar */}
         <div className="relative">
           <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-1.5">
             Empresa a facturar

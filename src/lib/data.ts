@@ -10,6 +10,10 @@ export interface Cliente {
   condicionPago: 30 | 60 | 90;
 }
 
+export const DIVISIONES = [
+  { nombre: 'Control de Calidad y Asistencia Técnica', codigo: 'DCAT' },
+];
+
 export const CLIENTES: Cliente[] = [
   {
     nombre: 'Compañía General de Electricidad S.A',
@@ -214,3 +218,32 @@ export const JEFES_PROYECTO: string[] = [
 
 // Condiciones de pago disponibles
 export const CONDICIONES_PAGO = [30, 60, 90] as const;
+
+// Empresas OCA emisoras de factura
+export interface EmpresaOCA {
+  id: 'ensayos' | 'servicios_tecnicos';
+  nombre: string;
+  nombreCorto: string;
+  rut: string;
+  dv: string;
+  direccion: string;
+}
+
+export const EMPRESAS_OCA: EmpresaOCA[] = [
+  {
+    id: 'servicios_tecnicos',
+    nombre: 'OCA GLOBAL SERVICIOS TECNICOS CHILE, S.A.',
+    nombreCorto: 'Servicios Técnicos',
+    rut: '77851467',
+    dv: '2',
+    direccion: 'PEDRO DE VALDIVIA 291 90 PROVIDENCIA, Chile'
+  },
+  {
+    id: 'ensayos',
+    nombre: 'OCA ENSAYOS, INSPECCIONES Y CERTIFICACIONES CHILE, S.A.',
+    nombreCorto: 'OCA Ensayos',
+    rut: '76390033',
+    dv: '9',
+    direccion: 'PEDRO DE VALDIVIA 291 90 PISO 9 PROVIDENCIA, Chile'
+  }
+];
