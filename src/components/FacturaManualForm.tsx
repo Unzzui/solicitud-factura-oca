@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { CLIENTES, JEFES_PROYECTO, CONDICIONES_PAGO, Cliente, EMPRESAS_OCA, EmpresaOCA, DIVISIONES } from '@/lib/data';
-import { FacturaData } from '@/lib/excelGenerator';
+import { FacturaData, TipoPlantilla } from '@/lib/excelGenerator';
 
 interface FacturaManualFormProps {
   onAgregarFactura: (factura: FacturaData) => void;
@@ -27,6 +27,8 @@ export default function FacturaManualForm({ onAgregarFactura, onActualizarFactur
 
   // Empresa OCA emisora - por defecto Servicios Técnicos
   const [empresaOCA, setEmpresaOCA] = useState<EmpresaOCA>(EMPRESAS_OCA[0]);
+  // Tipo de plantilla por factura - por defecto la nueva
+  const [tipoPlantilla, setTipoPlantilla] = useState<TipoPlantilla>('nueva');
 
   // Estados para los demás campos
   const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0]);
@@ -81,6 +83,10 @@ export default function FacturaManualForm({ onAgregarFactura, onActualizarFactur
         if (ocaEncontrada) {
           setEmpresaOCA(ocaEncontrada);
         }
+      }
+      // Cargar tipo de plantilla
+      if (facturaEditar.tipoPlantilla) {
+        setTipoPlantilla(facturaEditar.tipoPlantilla);
       }
     }
   }, [facturaEditar]);
@@ -151,7 +157,8 @@ export default function FacturaManualForm({ onAgregarFactura, onActualizarFactur
         rut: empresaOCA.rut,
         dv: empresaOCA.dv,
         direccion: empresaOCA.direccion
-      }
+      },
+      tipoPlantilla
     };
 
     if (modoEdicion && onActualizarFactura) {
@@ -243,6 +250,51 @@ export default function FacturaManualForm({ onAgregarFactura, onActualizarFactur
           </div>
         </div>
 
+        {/* Selector de tipo de plantilla */}
+        <div className="mb-4 sm:mb-6">
+          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-2">
+            Formato de la solicitud
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setTipoPlantilla('nueva')}
+              className={`p-3 rounded-lg border-2 transition-all text-left ${
+                tipoPlantilla === 'nueva'
+                  ? 'border-oca-blue bg-oca-blue-lighter'
+                  : 'border-gray-200 hover:border-gray-300 bg-white'
+              }`}
+            >
+              <span className={`block font-medium text-sm ${
+                tipoPlantilla === 'nueva' ? 'text-oca-blue' : 'text-gray-800'
+              }`}>
+                Plantilla nueva
+              </span>
+              <span className="block text-xs text-gray-500 mt-0.5">
+                Formato actual
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setTipoPlantilla('antigua')}
+              className={`p-3 rounded-lg border-2 transition-all text-left ${
+                tipoPlantilla === 'antigua'
+                  ? 'border-oca-blue bg-oca-blue-lighter'
+                  : 'border-gray-200 hover:border-gray-300 bg-white'
+              }`}
+            >
+              <span className={`block font-medium text-sm ${
+                tipoPlantilla === 'antigua' ? 'text-oca-blue' : 'text-gray-800'
+              }`}>
+                Plantilla antigua
+              </span>
+              <span className="block text-xs text-gray-500 mt-0.5">
+                Formato legacy
+              </span>
+            </button>
+          </div>
+        </div>
+
         {/* Sección: Datos principales */}
         <div className="mb-4 sm:mb-6">
           <h4 className="text-xs sm:text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3 sm:mb-4 flex items-center gap-2">
@@ -278,7 +330,7 @@ export default function FacturaManualForm({ onAgregarFactura, onActualizarFactur
                 <div className="absolute z-20 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                   {empresasFiltradas.map((cliente) => (
                     <button
-                      key={cliente.rut}
+                      key={`${cliente.rut}-${cliente.nombre}`}
                       type="button"
                       onClick={() => handleSelectEmpresa(cliente)}
                       className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 text-left hover:bg-oca-blue-lighter transition-colors flex flex-col sm:flex-row sm:justify-between sm:items-center ${

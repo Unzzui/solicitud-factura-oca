@@ -1,10 +1,11 @@
 @import "tailwindcss";
 
 :root {
-  --oca-blue: #294D6D;
-  --oca-blue-light: #4A7BA7;
-  --oca-blue-lighter: #E8F1F8;
-  --oca-blue-dark: #1E3A52;
+  /* Branding OCA: negro */
+  --oca-blue: #111111;
+  --oca-blue-light: #2d2d2d;
+  --oca-blue-lighter: #f3f4f6;
+  --oca-blue-dark: #000000;
   --oca-red: #DE473C;
   --oca-red-light: #FDEAEA;
   --oca-red-dark: #C73C32;
@@ -170,7 +171,7 @@ body {
 
 /* Header Gradient */
 .header-gradient {
-  background: linear-gradient(to right, var(--oca-blue), var(--oca-blue), var(--oca-blue-dark));
+  background: linear-gradient(to right, #000000, #111111, #000000);
 }
 
 /* Table Styles */
@@ -218,9 +219,9 @@ body {
 
 /* Footer Gradient */
 .footer-gradient {
-  background: #0b3356 !important;
-  background: -webkit-gradient(linear, left top, left bottom, from(#0b3356), to(#020a11)) !important;
-  background: linear-gradient(to bottom, #0b3356 0%, #020a11 100%) !important;
+  background: #000000 !important;
+  background: -webkit-gradient(linear, left top, left bottom, from(#111111), to(#000000)) !important;
+  background: linear-gradient(to bottom, #111111 0%, #000000 100%) !important;
   padding: 3em 0 !important;
 }
 

@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import Modal from './Modal';
 import { CLIENTES, JEFES_PROYECTO, CONDICIONES_PAGO, Cliente, EMPRESAS_OCA, EmpresaOCA } from '@/lib/data';
-import { PlantillaConfig } from '@/lib/excelGenerator';
+import { PlantillaConfig, TipoPlantilla } from '@/lib/excelGenerator';
 
 interface PlantillaConfigModalProps {
   isOpen: boolean;
@@ -27,6 +27,8 @@ export default function PlantillaConfigModal({
   const [showJefeDropdown, setShowJefeDropdown] = useState(false);
   // Empresa OCA emisora - por defecto Servicios Técnicos
   const [empresaOCA, setEmpresaOCA] = useState<EmpresaOCA>(EMPRESAS_OCA[0]);
+  // Tipo de plantilla a usar al generar las facturas
+  const [tipoPlantilla, setTipoPlantilla] = useState<TipoPlantilla>('nueva');
 
   const empresasFiltradas = useMemo(() => {
     if (!busquedaEmpresa) return CLIENTES;
@@ -77,7 +79,8 @@ export default function PlantillaConfigModal({
         rut: empresaOCA.rut,
         dv: empresaOCA.dv,
         direccion: empresaOCA.direccion
-      }
+      },
+      tipoPlantilla
     });
     resetForm();
     onClose();
@@ -96,6 +99,7 @@ export default function PlantillaConfigModal({
     setBusquedaEmpresa('');
     setBusquedaJefe('');
     setEmpresaOCA(EMPRESAS_OCA[0]); // Reset a Servicios Técnicos por defecto
+    setTipoPlantilla('nueva');
   };
 
   const puedeDescargar = empresaSeleccionada && jefeProyecto;
@@ -103,6 +107,51 @@ export default function PlantillaConfigModal({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Configurar Plantilla">
       <div className="space-y-4 sm:space-y-5">
+        {/* Selector de plantilla */}
+        <div>
+          <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-1.5">
+            Formato de la solicitud
+          </label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setTipoPlantilla('nueva')}
+              className={`p-3 rounded-lg border-2 transition-all text-left ${
+                tipoPlantilla === 'nueva'
+                  ? 'border-oca-blue bg-oca-blue-lighter'
+                  : 'border-gray-200 hover:border-gray-300 bg-white'
+              }`}
+            >
+              <span className={`block font-medium text-sm ${
+                tipoPlantilla === 'nueva' ? 'text-oca-blue' : 'text-gray-800'
+              }`}>
+                Plantilla nueva
+              </span>
+              <span className="block text-xs text-gray-500 mt-0.5">
+                Formato actual
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setTipoPlantilla('antigua')}
+              className={`p-3 rounded-lg border-2 transition-all text-left ${
+                tipoPlantilla === 'antigua'
+                  ? 'border-oca-blue bg-oca-blue-lighter'
+                  : 'border-gray-200 hover:border-gray-300 bg-white'
+              }`}
+            >
+              <span className={`block font-medium text-sm ${
+                tipoPlantilla === 'antigua' ? 'text-oca-blue' : 'text-gray-800'
+              }`}>
+                Plantilla antigua
+              </span>
+              <span className="block text-xs text-gray-500 mt-0.5">
+                Formato legacy
+              </span>
+            </button>
+          </div>
+        </div>
+
         {/* Selector de Empresa OCA emisora */}
         <div>
           <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1 sm:mb-1.5">
@@ -165,7 +214,7 @@ export default function PlantillaConfigModal({
             <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-40 sm:max-h-48 overflow-y-auto">
               {empresasFiltradas.map((cliente) => (
                 <button
-                  key={cliente.rut}
+                  key={`${cliente.rut}-${cliente.nombre}`}
                   type="button"
                   onClick={() => handleSelectEmpresa(cliente)}
                   className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 text-left hover:bg-oca-blue-lighter transition-colors flex flex-col sm:flex-row sm:justify-between sm:items-center ${

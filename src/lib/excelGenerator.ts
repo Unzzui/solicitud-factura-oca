@@ -41,6 +41,9 @@ export interface FacturaData {
     dv: string;
     direccion: string;
   };
+
+  // Tipo de plantilla a usar al generar el archivo
+  tipoPlantilla?: 'nueva' | 'antigua';
 }
 
 // Calcula fecha de vencimiento según días de condición de pago
@@ -62,16 +65,25 @@ function setCellValue(ws: ExcelJS.Worksheet, address: string, value: unknown): v
   }
 }
 
+export type TipoPlantilla = 'nueva' | 'antigua';
+
 // Genera un archivo Excel de factura basado en la plantilla
 export async function generarFactura(
   plantillaBuffer: ArrayBuffer,
-  data: FacturaData
+  data: FacturaData,
+  tipoPlantillaParam: TipoPlantilla = 'nueva'
 ): Promise<Blob> {
+  const tipoPlantilla: TipoPlantilla = data.tipoPlantilla || tipoPlantillaParam;
+
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(plantillaBuffer);
 
-  const ws = workbook.getWorksheet('Factura');
-  if (!ws) throw new Error('No se encontró la hoja "Factura"');
+  // En la plantilla antigua el nombre de la hoja puede variar (ej: "Factura 01-101031 ")
+  const ws =
+    workbook.getWorksheet('Factura') ||
+    workbook.worksheets.find(w => w.name.trim().toLowerCase().startsWith('factura')) ||
+    workbook.worksheets[0];
+  if (!ws) throw new Error('No se encontró la hoja de factura');
 
   const fechaVcto = calcularFechaVcto(data.fecha, data.condicionPago);
 
@@ -109,7 +121,6 @@ export async function generarFactura(
   const ocFormateada = data.ordenCompra
     ? (data.ordenCompra.toUpperCase().startsWith('OC') ? data.ordenCompra : `OC ${data.ordenCompra}`)
     : '';
-  setCellValue(ws, 'D35', ocFormateada);
 
   // Formatear HES/LCL con prefijo si no lo tiene (LCL para Enel, HES para otros)
   const esEnel = data.empresa.toLowerCase().includes('enel');
@@ -122,12 +133,24 @@ export async function generarFactura(
       hesFormateada = data.hes.toUpperCase().startsWith('HES') ? data.hes : `HES ${numero}`;
     }
   }
-  setCellValue(ws, 'D36', hesFormateada);
 
-  setCellValue(ws, 'D37', data.contacto ? `CONTACTO ${data.contacto}` : '');
+  const contactoFormateado = data.contacto ? `CONTACTO ${data.contacto}` : '';
 
-  // Monto
-  setCellValue(ws, 'D42', data.monto);
+  if (tipoPlantilla === 'antigua') {
+    // Plantilla antigua: OC/HES/Contacto en filas distintas y monto en columna K
+    setCellValue(ws, 'D32', '');           // Limpiar sub-detalle de ejemplo
+    setCellValue(ws, 'K32', data.monto);   // El total D45 = SUM(K32:K37) se recalcula
+    setCellValue(ws, 'D39', ocFormateada);
+    setCellValue(ws, 'D40', hesFormateada);
+    setCellValue(ws, 'D41', '');           // FECHA CONFORMIDAD - limpiar ejemplo
+    setCellValue(ws, 'D42', contactoFormateado);
+  } else {
+    // Plantilla nueva
+    setCellValue(ws, 'D35', ocFormateada);
+    setCellValue(ws, 'D36', hesFormateada);
+    setCellValue(ws, 'D37', contactoFormateado);
+    setCellValue(ws, 'D42', data.monto);
+  }
 
   // Empresa OCA emisora (D15)
   if (data.empresaOCA) {
@@ -166,6 +189,8 @@ export interface PlantillaConfig {
     dv: string;
     direccion: string;
   };
+  // Tipo de plantilla seleccionado al configurar la descarga
+  tipoPlantilla?: TipoPlantilla;
 }
 
 // Resultado del parseo de Excel con configuración
@@ -222,13 +247,13 @@ export async function generarPlantillaDatos(config?: PlantillaConfig): Promise<B
     for (let col = 1; col <= headersSimple.length; col++) {
       const cell = headerRow.getCell(col);
       cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF294D6D' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF111111' } };
       cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
       cell.border = {
-        top: { style: 'thin', color: { argb: 'FF294D6D' } },
-        bottom: { style: 'thin', color: { argb: 'FF294D6D' } },
-        left: { style: 'thin', color: { argb: 'FF294D6D' } },
-        right: { style: 'thin', color: { argb: 'FF294D6D' } }
+        top: { style: 'thin', color: { argb: 'FF111111' } },
+        bottom: { style: 'thin', color: { argb: 'FF111111' } },
+        left: { style: 'thin', color: { argb: 'FF111111' } },
+        right: { style: 'thin', color: { argb: 'FF111111' } }
       };
     }
 
@@ -308,6 +333,8 @@ export async function generarPlantillaDatos(config?: PlantillaConfig): Promise<B
     configSheet.getCell('B14').value = config.empresaOCA?.dv || '2';
     configSheet.getCell('A15').value = 'empresaOCA_direccion';
     configSheet.getCell('B15').value = config.empresaOCA?.direccion || 'PEDRO DE VALDIVIA 291 90 PROVIDENCIA, Chile';
+    configSheet.getCell('A16').value = 'tipoPlantilla';
+    configSheet.getCell('B16').value = config.tipoPlantilla || 'nueva';
     configSheet.state = 'hidden'; // Ocultar hoja de config
 
   } else {
@@ -327,13 +354,13 @@ export async function generarPlantillaDatos(config?: PlantillaConfig): Promise<B
     for (let col = 1; col <= headers.length; col++) {
       const cell = headerRow.getCell(col);
       cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF294D6D' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF111111' } };
       cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
       cell.border = {
-        top: { style: 'thin', color: { argb: 'FF294D6D' } },
-        bottom: { style: 'thin', color: { argb: 'FF294D6D' } },
-        left: { style: 'thin', color: { argb: 'FF294D6D' } },
-        right: { style: 'thin', color: { argb: 'FF294D6D' } }
+        top: { style: 'thin', color: { argb: 'FF111111' } },
+        bottom: { style: 'thin', color: { argb: 'FF111111' } },
+        left: { style: 'thin', color: { argb: 'FF111111' } },
+        right: { style: 'thin', color: { argb: 'FF111111' } }
       };
     }
 
@@ -367,14 +394,14 @@ export async function generarPlantillaDatos(config?: PlantillaConfig): Promise<B
   const instrucciones = workbook.addWorksheet('Instrucciones');
   instrucciones.mergeCells('A1:B1');
   instrucciones.getCell('A1').value = 'INSTRUCCIONES DE USO';
-  instrucciones.getCell('A1').font = { bold: true, size: 16, color: { argb: 'FF294D6D' } };
+  instrucciones.getCell('A1').font = { bold: true, size: 16, color: { argb: 'FF111111' } };
   instrucciones.getRow(1).height = 30;
   instrucciones.addRow([]);
 
   if (config) {
     // Mostrar empresa OCA emisora primero
     instrucciones.addRow(['EMPRESA OCA EMISORA:', '']);
-    instrucciones.getRow(3).font = { bold: true, color: { argb: 'FF294D6D' } };
+    instrucciones.getRow(3).font = { bold: true, color: { argb: 'FF111111' } };
     const nombreOCA = config.empresaOCA?.nombre || 'OCA GLOBAL SERVICIOS TECNICOS CHILE, S.A.';
     const rutOCA = config.empresaOCA ? `${config.empresaOCA.rut}-${config.empresaOCA.dv}` : '77851467-2';
     const direccionOCA = config.empresaOCA?.direccion || 'PEDRO DE VALDIVIA 291 90 PROVIDENCIA, Chile';
@@ -442,7 +469,7 @@ export async function generarPlantillaDatos(config?: PlantillaConfig): Promise<B
   pasos.forEach((paso) => {
     const row = instrucciones.addRow(paso);
     if (paso[0] === 'SOLO DEBE COMPLETAR:' || paso[0] === 'PASOS:' || paso[0] === 'PASOS A SEGUIR:' || paso[0] === 'CAMPOS OBLIGATORIOS:') {
-      row.font = { bold: true, color: { argb: 'FF294D6D' } };
+      row.font = { bold: true, color: { argb: 'FF111111' } };
     }
   });
 
@@ -504,6 +531,9 @@ export async function parsearDatosExcel(buffer: ArrayBuffer): Promise<ResultadoP
     const empresaOCADv = getConfigValue(14) || '2';
     const empresaOCADireccion = getConfigValue(15) || 'PEDRO DE VALDIVIA 291 90 PROVIDENCIA, Chile';
 
+    const tipoPlantillaRaw = getConfigValue(16);
+    const tipoPlantillaCfg: TipoPlantilla = tipoPlantillaRaw === 'antigua' ? 'antigua' : 'nueva';
+
     configData = {
       empresa: getConfigValue(1),
       rutNumero: getConfigValue(2),
@@ -516,7 +546,8 @@ export async function parsearDatosExcel(buffer: ArrayBuffer): Promise<ResultadoP
         rut: empresaOCARut,
         dv: empresaOCADv,
         direccion: empresaOCADireccion
-      }
+      },
+      tipoPlantilla: tipoPlantillaCfg
     };
     division = getConfigValue(6) || 'Control de Calidad y Asistencia Técnica';
     giro = getConfigValue(7);
@@ -631,7 +662,8 @@ export async function parsearDatosExcel(buffer: ArrayBuffer): Promise<ResultadoP
             contacto: '',
             monto,
             condicionPago: configData.condicionPago,
-            empresaOCA: configData.empresaOCA // Empresa OCA emisora
+            empresaOCA: configData.empresaOCA, // Empresa OCA emisora
+            tipoPlantilla: configData.tipoPlantilla || 'nueva'
           });
         }
       } else {

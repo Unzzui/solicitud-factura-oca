@@ -10,7 +10,7 @@ import {
   parsearDatosExcel,
   FacturaData,
   PlantillaConfig,
-  ResultadoParseoExcel
+  TipoPlantilla
 } from '@/lib/excelGenerator';
 import PlantillaConfigModal from '@/components/PlantillaConfigModal';
 import FacturaManualForm from '@/components/FacturaManualForm';
@@ -23,7 +23,8 @@ export default function Home() {
   const [status, setStatus] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [facturas, setFacturas] = useState<FacturaData[]>([]);
-  const [plantillaBuffer, setPlantillaBuffer] = useState<ArrayBuffer | null>(null);
+  const [plantillaNuevaBuffer, setPlantillaNuevaBuffer] = useState<ArrayBuffer | null>(null);
+  const [plantillaAntiguaBuffer, setPlantillaAntiguaBuffer] = useState<ArrayBuffer | null>(null);
   const [progress, setProgress] = useState(0);
   const [showPlantillaModal, setShowPlantillaModal] = useState(false);
   const [modoIngreso, setModoIngreso] = useState<ModoIngreso>('excel');
@@ -35,8 +36,12 @@ export default function Home() {
   useEffect(() => {
     fetch('/plantilla_factura.xlsx')
       .then(res => res.arrayBuffer())
-      .then(buffer => setPlantillaBuffer(buffer))
+      .then(buffer => setPlantillaNuevaBuffer(buffer))
       .catch(() => setError('Error cargando la plantilla base'));
+    fetch('/plantilla_antigua_factura.xlsx')
+      .then(res => res.arrayBuffer())
+      .then(buffer => setPlantillaAntiguaBuffer(buffer))
+      .catch(() => { /* opcional */ });
   }, []);
 
   const descargarPlantilla = async (config?: PlantillaConfig) => {
@@ -126,7 +131,11 @@ export default function Home() {
   };
 
   const generarTodas = async () => {
-    if (!plantillaBuffer || facturas.length === 0) return;
+    if (facturas.length === 0) return;
+    if (!plantillaNuevaBuffer) {
+      setError('Plantilla nueva no disponible');
+      return;
+    }
 
     setIsProcessing(true);
     setProgress(0);
@@ -139,7 +148,13 @@ export default function Home() {
         setStatus(`Generando factura ${i + 1} de ${facturas.length}...`);
         setProgress(Math.round(((i + 1) / facturas.length) * 100));
 
-        const blob = await generarFactura(plantillaBuffer, factura);
+        const tipo: TipoPlantilla = factura.tipoPlantilla || 'nueva';
+        const bufferUsado = tipo === 'antigua' ? plantillaAntiguaBuffer : plantillaNuevaBuffer;
+        if (!bufferUsado) {
+          throw new Error(`Plantilla ${tipo} no disponible`);
+        }
+
+        const blob = await generarFactura(bufferUsado, factura, tipo);
         // Generar nombre con nomenclatura LCL/HES/OC
         let identificador = `F${i + 1}`;
         const esEnel = factura.empresa.toLowerCase().includes('enel');
@@ -213,7 +228,7 @@ export default function Home() {
   const totalMonto = facturas.reduce((sum, f) => sum + f.monto, 0);
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen flex flex-col">
       {/* Header con gradiente OCA */}
       <header className="header-gradient text-white shadow-lg">
         <div className="container mx-auto px-4 sm:px-6 py-3 sm:py-4">
@@ -234,7 +249,7 @@ export default function Home() {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-5xl">
+      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 max-w-5xl flex-grow w-full">
         {/* Title Section */}
         <div className="text-center mb-6 sm:mb-10 animate-fade-in">
           <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-800 mb-1 sm:mb-2">
@@ -673,7 +688,7 @@ export default function Home() {
       <footer
         className="w-full text-center"
         style={{
-          background: 'linear-gradient(to bottom, #0b3356 0%, #020a11 100%)',
+          background: 'linear-gradient(to bottom, #111111 0%, #000000 100%)',
           padding: '3em 0'
         }}
       >
