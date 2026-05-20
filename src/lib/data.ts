@@ -213,7 +213,7 @@ export const JEFES_PROYECTO: string[] = [
   'Nadia Garrido',
   'Freddy Suarez',
   'Felipe Vielma',
-  'Tomas Koren'
+  'Diego Bravo'
 ].sort();
 
 // Condiciones de pago disponibles
