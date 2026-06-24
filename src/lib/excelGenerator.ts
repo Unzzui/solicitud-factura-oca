@@ -752,3 +752,142 @@ export async function parsearDatosExcel(buffer: ArrayBuffer): Promise<ResultadoP
     configuracion: configData
   };
 }
+
+// Genera un resumen Excel del batch para incluir en el ZIP.
+// Una sola hoja con: encabezado del batch, tabla agrupada por OT con subtotales
+// y total general al final.
+export async function generarResumenBatch(facturas: FacturaData[]): Promise<Blob> {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'OCA Global';
+  wb.created = new Date();
+
+  const ws = wb.addWorksheet('Resumen');
+
+  // Columnas: OT, Detalle (glosa), Empresa, OC/Conformidad, HES/LCL, Monto
+  ws.columns = [
+    { width: 10 },  // OT
+    { width: 38 },  // Detalle (glosa)
+    { width: 38 },  // Empresa
+    { width: 20 },  // OC / Conformidad
+    { width: 20 },  // HES / LCL
+    { width: 18 },  // Monto
+  ];
+
+  // === Encabezado del batch ===
+  const fechaGen = new Date();
+  const totalMonto = facturas.reduce((sum, f) => sum + f.monto, 0);
+
+  ws.mergeCells('A1:F1');
+  ws.getCell('A1').value = 'Resumen de solicitudes de facturación';
+  ws.getCell('A1').font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
+  ws.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF111111' } };
+  ws.getCell('A1').alignment = { horizontal: 'center', vertical: 'middle' };
+  ws.getRow(1).height = 28;
+
+  ws.mergeCells('A2:F2');
+  ws.getCell('A2').value =
+    `Generado: ${fechaGen.toLocaleString('es-CL')} · ${facturas.length} solicitud(es) · Total $${totalMonto.toLocaleString('es-CL')}`;
+  ws.getCell('A2').font = { italic: true, color: { argb: 'FF555555' } };
+  ws.getCell('A2').alignment = { horizontal: 'center' };
+
+  // Empresa OCA emisora (si todas comparten una)
+  const ocas = new Set(facturas.map(f => f.empresaOCA?.nombre).filter(Boolean));
+  if (ocas.size === 1) {
+    ws.mergeCells('A3:F3');
+    ws.getCell('A3').value = `Emisor: ${[...ocas][0]}`;
+    ws.getCell('A3').font = { italic: true, color: { argb: 'FF555555' } };
+    ws.getCell('A3').alignment = { horizontal: 'center' };
+  }
+
+  ws.addRow([]);
+
+  // === Headers de la tabla ===
+  const headers = ['OT', 'Detalle (glosa)', 'Empresa', 'OC / Conformidad', 'HES / LCL', 'Monto ($)'];
+  const headerRow = ws.addRow(headers);
+  headerRow.eachCell(cell => {
+    cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF294D6D' } };
+    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+    cell.border = {
+      top: { style: 'thin' }, bottom: { style: 'thin' },
+      left: { style: 'thin' }, right: { style: 'thin' }
+    };
+  });
+  headerRow.height = 22;
+
+  // === Agrupar por OT ===
+  type Item = { factura: FacturaData };
+  const grupos = new Map<string, Item[]>();
+  facturas.forEach(factura => {
+    const raw = (factura.centroCosto || '').replace(/\D/g, '');
+    const key = raw ? (raw.replace(/^0+/, '') || '0') : 'sin_numero';
+    if (!grupos.has(key)) grupos.set(key, []);
+    grupos.get(key)!.push({ factura });
+  });
+
+  const gruposOrdenados = [...grupos.entries()].sort((a, b) => {
+    const na = a[0] === 'sin_numero' ? Number.MAX_SAFE_INTEGER : parseInt(a[0], 10);
+    const nb = b[0] === 'sin_numero' ? Number.MAX_SAFE_INTEGER : parseInt(b[0], 10);
+    return na - nb;
+  });
+
+  gruposOrdenados.forEach(([otKey, items]) => {
+    const subtotal = items.reduce((s, it) => s + it.factura.monto, 0);
+    const otLabel = otKey === 'sin_numero' ? 'Sin OT' : `OT ${otKey}`;
+
+    // Encabezado de grupo: OT (mergeada con Detalle/Empresa/OC), conteo en HES, subtotal en Monto
+    const groupRow = ws.addRow([otLabel, '', '', '', `${items.length} sol.`, subtotal]);
+    ws.mergeCells(`A${groupRow.number}:D${groupRow.number}`);
+    groupRow.eachCell(cell => {
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F1F8' } };
+      cell.font = { bold: true, color: { argb: 'FF294D6D' } };
+    });
+    groupRow.getCell(5).alignment = { horizontal: 'right' };
+    groupRow.getCell(6).numFmt = '$#,##0';
+    groupRow.getCell(6).alignment = { horizontal: 'right' };
+
+    // Filas de detalle
+    items.forEach(({ factura: f }) => {
+      const row = ws.addRow([
+        f.centroCosto || '',
+        f.detalle || '',
+        f.empresa,
+        f.ordenCompra || '',
+        f.hes || '',
+        f.monto
+      ]);
+      row.getCell(1).alignment = { horizontal: 'center' };
+      row.getCell(2).alignment = { wrapText: true };
+      row.getCell(6).numFmt = '$#,##0';
+      row.eachCell(cell => {
+        cell.border = {
+          top: { style: 'hair', color: { argb: 'FFDDDDDD' } },
+          bottom: { style: 'hair', color: { argb: 'FFDDDDDD' } },
+          left: { style: 'hair', color: { argb: 'FFDDDDDD' } },
+          right: { style: 'hair', color: { argb: 'FFDDDDDD' } }
+        };
+        if (!cell.font) cell.font = { size: 10 };
+        else cell.font = { ...cell.font, size: 10 };
+      });
+    });
+  });
+
+  // === Total general ===
+  ws.addRow([]);
+  const totalRow = ws.addRow(['', '', '', '', 'TOTAL', totalMonto]);
+  totalRow.getCell(5).alignment = { horizontal: 'right' };
+  totalRow.getCell(5).font = { bold: true, size: 11 };
+  totalRow.getCell(6).font = { bold: true, size: 11, color: { argb: 'FFFFFFFF' } };
+  totalRow.getCell(6).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF111111' } };
+  totalRow.getCell(6).numFmt = '$#,##0';
+  totalRow.getCell(6).alignment = { horizontal: 'right' };
+  totalRow.height = 24;
+
+  // Congelar encabezados de la tabla
+  ws.views = [{ state: 'frozen', ySplit: 5 }];
+
+  const buffer = await wb.xlsx.writeBuffer();
+  return new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  });
+}

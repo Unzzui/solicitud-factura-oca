@@ -7,6 +7,7 @@ import { saveAs } from 'file-saver';
 import {
   generarFactura,
   generarPlantillaDatos,
+  generarResumenBatch,
   parsearDatosExcel,
   FacturaData,
   PlantillaConfig,
@@ -274,6 +275,11 @@ export default function Home() {
         zip.file(`${otCarpeta}/${nombreArchivo}`, blob);
       }
 
+      // Agregar resumen del batch en la raíz del ZIP
+      setStatus('Generando resumen del lote...');
+      const resumenBlob = await generarResumenBatch(facturasOrdenadas);
+      zip.file('00_Resumen.xlsx', resumenBlob);
+
       setStatus('Comprimiendo archivos...');
       const zipBlob = await zip.generateAsync({ type: 'blob' });
 
@@ -455,7 +461,7 @@ export default function Home() {
                       Sube el archivo con los datos
                     </h2>
                     <p className="text-gray-500 mb-3 sm:mb-5 text-xs sm:text-sm">
-                      Una vez completados los datos, sube el archivo aquí para generar las facturas.
+                      Una vez completados los datos, sube el archivo aquí para generar las  solicitudes de factura.
                     </p>
 
                     {/* Drop zone */}

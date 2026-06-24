@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import ExcelJS from 'exceljs';
-import { parsearDatosExcel } from './excelGenerator';
+import { parsearDatosExcel, generarResumenBatch, FacturaData } from './excelGenerator';
 
 // Construye un buffer de "Datos Facturas" en formato completo (sin hoja Config).
 // Cada fila es una factura completa (18 columnas).
@@ -50,5 +50,46 @@ describe('parsearDatosExcel - plantilla completa', () => {
     const buffer = await buildExcelBuffer([filaValida, fila2]);
     const { facturas } = await parsearDatosExcel(buffer);
     expect(facturas).toHaveLength(2);
+  });
+});
+
+describe('generarResumenBatch', () => {
+  function makeFactura(over: Partial<FacturaData>): FacturaData {
+    return {
+      fecha: new Date('2026-06-24'),
+      centroCosto: '00007',
+      division: 'Control de Calidad y Asistencia Técnica',
+      empresa: 'Aguas Andinas S.A.',
+      rutNumero: '61808000', rutDv: '5',
+      direccion: '', comuna: '', ciudad: '', giro: '',
+      atencionSr: 'Sr. X', jefeProy: 'Roberto Jamett',
+      detalle: '', ordenCompra: 'OC 1', hes: 'HES 1', contacto: '',
+      monto: 1000, condicionPago: 30,
+      ...over
+    };
+  }
+
+  it('genera un Blob con las filas y el total', async () => {
+    const facturas = [
+      makeFactura({ centroCosto: '00007', monto: 1000, ordenCompra: 'OC A', hes: 'HES 1' }),
+      makeFactura({ centroCosto: '00012', monto: 2000, ordenCompra: 'OC B', hes: 'HES 2' })
+    ];
+    const blob = await generarResumenBatch(facturas);
+    expect(blob.size).toBeGreaterThan(0);
+
+    // Releer para verificar estructura
+    const wb = new ExcelJS.Workbook();
+    const buffer = await blob.arrayBuffer();
+    await wb.xlsx.load(buffer);
+    const ws = wb.getWorksheet('Resumen');
+    expect(ws).toBeTruthy();
+    // Debe contener "TOTAL" y el monto sumado en alguna celda
+    let total = 0;
+    ws!.eachRow(row => {
+      row.eachCell(cell => {
+        if (cell.value === 'TOTAL') total++;
+      });
+    });
+    expect(total).toBe(1);
   });
 });
