@@ -749,7 +749,7 @@ export default function Home() {
                       </div>
                       <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-gradient-to-r from-oca-blue to-oca-blue-light transition-all duration-300"
+                          className="progress-fill"
                           style={{ width: `${progress}%` }}
                         />
                       </div>
