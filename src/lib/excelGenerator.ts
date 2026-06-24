@@ -1,4 +1,6 @@
 import ExcelJS from 'exceljs';
+import { z } from 'zod';
+import { generarDetalleEjemplo, OT_PRINCIPAL, OT_PADDING } from './data';
 
 export interface FacturaData {
   // Fecha de creación
@@ -199,6 +201,40 @@ export interface ResultadoParseoExcel {
   configuracion: PlantillaConfig | null;
 }
 
+// Schema de validación para una fila parseada del Excel.
+// Se aplica DESPUÉS del parseo para garantizar tipos correctos antes de
+// devolver los datos al consumidor (UI, generador de Excel).
+const FacturaDataSchema = z.object({
+  fecha: z.date(),
+  centroCosto: z.string(),
+  division: z.string(),
+  empresa: z.string().min(1, 'falta el nombre de la empresa'),
+  rutNumero: z.string().min(1, 'falta el RUT'),
+  rutDv: z.string().min(1, 'falta el dígito verificador'),
+  direccion: z.string(),
+  comuna: z.string(),
+  ciudad: z.string(),
+  giro: z.string(),
+  atencionSr: z.string(),
+  jefeProy: z.string().min(1, 'falta el jefe de proyecto'),
+  detalle: z.string(),
+  ordenCompra: z.string(),
+  hes: z.string(),
+  contacto: z.string(),
+  monto: z.number().positive('el monto debe ser mayor a 0'),
+  condicionPago: z.number().refine(v => [30, 60, 90].includes(v), {
+    message: 'condición de pago debe ser 30, 60 o 90'
+  }),
+  empresaOCA: z.object({
+    id: z.enum(['ensayos', 'servicios_tecnicos']),
+    nombre: z.string(),
+    rut: z.string(),
+    dv: z.string(),
+    direccion: z.string()
+  }).optional(),
+  tipoPlantilla: z.enum(['nueva', 'antigua']).optional()
+});
+
 // Genera la plantilla de datos para que el usuario la llene
 export async function generarPlantillaDatos(config?: PlantillaConfig): Promise<Blob> {
   const workbook = new ExcelJS.Workbook();
@@ -270,11 +306,13 @@ export async function generarPlantillaDatos(config?: PlantillaConfig): Promise<B
     ];
 
     // Primera fila con ejemplo
+    const ejemploOT = OT_PRINCIPAL.padStart(OT_PADDING, '0');
+    const ejemploDetalle = generarDetalleEjemplo(OT_PRINCIPAL, mesActual);
     const exampleRow = esEnel
       ? ws.addRow([
           fechaHoy,
-          '00007',
-          `OT 00007 (OCA) SSTT, ${mesActual}`,
+          ejemploOT,
+          ejemploDetalle,
           '5600012345',       // Conformidad
           'LCL 1003449089',   // LCL
           'Luis Soto',
@@ -282,8 +320,8 @@ export async function generarPlantillaDatos(config?: PlantillaConfig): Promise<B
         ])
       : ws.addRow([
           fechaHoy,
-          '00007',
-          `OT 00007 (OCA) SSTT, ${mesActual}`,
+          ejemploOT,
+          ejemploDetalle,
           'OC 42189111',
           'HES 1003449089',
           'Luis Soto',
@@ -372,11 +410,11 @@ export async function generarPlantillaDatos(config?: PlantillaConfig): Promise<B
 
     // Fila de ejemplo
     const exampleRow = ws.addRow([
-      fechaHoy, '00007', 'Control de Calidad y Asistencia Técnica',
+      fechaHoy, OT_PRINCIPAL.padStart(OT_PADDING, '0'), 'Control de Calidad y Asistencia Técnica',
       'Compañía General de Electricidad S.A', '76411321', '7',
       'Av. Presidente Riesco 5435, Piso 15', 'Las Condes', 'Santiago',
       'Distribución de Energía Eléctrica', 'Luis Soto', 'Roberto Jamett',
-      `OT 00007 (OCA) SSTT, ${mesActual}`, 'OC 42189111', 'HES 1003449089',
+      generarDetalleEjemplo(OT_PRINCIPAL, mesActual), 'OC 42189111', 'HES 1003449089',
       'Pablo González', 5856250, 30
     ]);
     exampleRow.font = { color: { argb: 'FF888888' }, italic: true };
@@ -482,14 +520,6 @@ export async function generarPlantillaDatos(config?: PlantillaConfig): Promise<B
   });
 }
 
-// Detecta si el centro de costo corresponde a OT 7 (formato: 7, 07, 007, 00007, etc.)
-function esOT7(centroCosto: string): boolean {
-  if (!centroCosto) return false;
-  // Verifica si el centro de costo es 7 (con ceros a la izquierda opcionales)
-  const numero = centroCosto.trim().replace(/^0+/, '');
-  return numero === '7';
-}
-
 // Parsea el archivo de datos subido por el usuario
 export async function parsearDatosExcel(buffer: ArrayBuffer): Promise<ResultadoParseoExcel> {
   const workbook = new ExcelJS.Workbook();
@@ -499,8 +529,6 @@ export async function parsearDatosExcel(buffer: ArrayBuffer): Promise<ResultadoP
   if (!ws) throw new Error('No se encontró la hoja "Datos Facturas"');
 
   const facturas: FacturaData[] = [];
-  const hesSet = new Set<string>();
-  const ocSet = new Set<string>();
   const errores: string[] = [];
 
   // Verificar si hay datos de configuración prellenados
@@ -625,24 +653,8 @@ export async function parsearDatosExcel(buffer: ArrayBuffer): Promise<ResultadoP
 
         // Solo procesar filas con monto
         if (monto > 0) {
-          const centroCostoVal = getValue(2);
-
-          // Validar HES/LCL duplicados - SIEMPRE aplica (incluso para OT 7)
-          if (hes && hesSet.has(hes)) {
-            errores.push(`Fila ${rowNumber}: ${esEnel ? 'LCL' : 'HES'} "${hes}" duplicado`);
-          } else if (hes) {
-            hesSet.add(hes);
-          }
-
-          // Validar OC/Conformidad duplicados - NO aplica para OT 7 (centro costo 7)
-          if (!esOT7(centroCostoVal)) {
-            if (ordenCompra && ocSet.has(ordenCompra)) {
-              errores.push(`Fila ${rowNumber}: ${esEnel ? 'Conformidad' : 'OC'} "${ordenCompra}" duplicado`);
-            } else if (ordenCompra) {
-              ocSet.add(ordenCompra);
-            }
-          }
-
+          // Nota: detección de OC/HES duplicados se hace en la UI (validations.ts)
+          // para que el usuario pueda decidir caso por caso si es intencional.
           facturas.push({
             fecha,
             centroCosto: getValue(2),
@@ -672,27 +684,8 @@ export async function parsearDatosExcel(buffer: ArrayBuffer): Promise<ResultadoP
         if (getValue(4)) { // Si tiene empresa
           const ordenCompra = getValue(14);
           const hes = getValue(15);
-          const centroCostoCompleto = getValue(2);
 
-          // Validar HES duplicados - SIEMPRE aplica (incluso para OT 7)
-          if (hes) {
-            if (hesSet.has(hes)) {
-              errores.push(`Fila ${rowNumber}: HES "${hes}" duplicado`);
-            } else {
-              hesSet.add(hes);
-            }
-          }
-
-          // Validar OC duplicados - NO aplica para OT 7 (centro costo 7)
-          if (!esOT7(centroCostoCompleto)) {
-            if (ordenCompra) {
-              if (ocSet.has(ordenCompra)) {
-                errores.push(`Fila ${rowNumber}: OC "${ordenCompra}" duplicado`);
-              } else {
-                ocSet.add(ordenCompra);
-              }
-            }
-          }
+          // Nota: detección de OC/HES duplicados se hace en la UI (validations.ts).
 
           // Validar campos requeridos
           if (!getValue(4)) {
@@ -733,6 +726,19 @@ export async function parsearDatosExcel(buffer: ArrayBuffer): Promise<ResultadoP
       }
     } catch (err) {
       errores.push(`Fila ${rowNumber}: Error al procesar - ${err instanceof Error ? err.message : 'Error desconocido'}`);
+    }
+  });
+
+  // Validación estructural con Zod sobre las facturas ya construidas.
+  // Atrapa tipos inválidos o campos requeridos vacíos que el parseo permisivo
+  // pudo dejar pasar (p.ej. monto = 0 en plantilla completa).
+  facturas.forEach((factura, idx) => {
+    const result = FacturaDataSchema.safeParse(factura);
+    if (!result.success) {
+      const detalles = result.error.issues
+        .map(i => `${i.path.join('.') || 'campo'}: ${i.message}`)
+        .join('; ');
+      errores.push(`Factura ${idx + 1}: ${detalles}`);
     }
   });
 

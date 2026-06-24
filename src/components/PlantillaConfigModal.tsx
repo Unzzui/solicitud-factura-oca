@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import Modal from './Modal';
-import { CLIENTES, JEFES_PROYECTO, CONDICIONES_PAGO, Cliente, EMPRESAS_OCA, EmpresaOCA } from '@/lib/data';
+import { JEFES_PROYECTO, CONDICIONES_PAGO, Cliente, EMPRESAS_OCA, EmpresaOCA, filtrarClientes } from '@/lib/data';
 import { PlantillaConfig, TipoPlantilla } from '@/lib/excelGenerator';
 
 interface PlantillaConfigModalProps {
@@ -30,14 +30,10 @@ export default function PlantillaConfigModal({
   // Tipo de plantilla a usar al generar las facturas
   const [tipoPlantilla, setTipoPlantilla] = useState<TipoPlantilla>('nueva');
 
-  const empresasFiltradas = useMemo(() => {
-    if (!busquedaEmpresa) return CLIENTES;
-    const busqueda = busquedaEmpresa.toLowerCase();
-    return CLIENTES.filter(c =>
-      c.nombre.toLowerCase().includes(busqueda) ||
-      c.rut.includes(busqueda)
-    );
-  }, [busquedaEmpresa]);
+  const empresasFiltradas = useMemo(
+    () => filtrarClientes(busquedaEmpresa),
+    [busquedaEmpresa]
+  );
 
   const jefesFiltrados = useMemo(() => {
     if (!busquedaJefe) return JEFES_PROYECTO;

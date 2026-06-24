@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { CLIENTES, JEFES_PROYECTO, CONDICIONES_PAGO, Cliente, EMPRESAS_OCA, EmpresaOCA, DIVISIONES } from '@/lib/data';
+import { CLIENTES, JEFES_PROYECTO, CONDICIONES_PAGO, Cliente, EMPRESAS_OCA, EmpresaOCA, DIVISIONES, filtrarClientes, usaLclConformidad } from '@/lib/data';
 import { FacturaData, TipoPlantilla } from '@/lib/excelGenerator';
 
 interface FacturaManualFormProps {
@@ -91,14 +91,10 @@ export default function FacturaManualForm({ onAgregarFactura, onActualizarFactur
     }
   }, [facturaEditar]);
 
-  const empresasFiltradas = useMemo(() => {
-    if (!busquedaEmpresa) return CLIENTES;
-    const busqueda = busquedaEmpresa.toLowerCase();
-    return CLIENTES.filter(c =>
-      c.nombre.toLowerCase().includes(busqueda) ||
-      c.rut.includes(busqueda)
-    );
-  }, [busquedaEmpresa]);
+  const empresasFiltradas = useMemo(
+    () => filtrarClientes(busquedaEmpresa),
+    [busquedaEmpresa]
+  );
 
   const jefesFiltrados = useMemo(() => {
     if (!busquedaJefe) return JEFES_PROYECTO;
@@ -525,25 +521,25 @@ export default function FacturaManualForm({ onAgregarFactura, onActualizarFactur
             </div>
             <div>
               <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                {empresaSeleccionada?.nombre.toLowerCase().includes('enel') ? 'Conformidad' : 'OC'}
+                {usaLclConformidad(empresaSeleccionada?.nombre ?? '') ? 'Conformidad' : 'OC'}
               </label>
               <input
                 type="text"
                 value={ordenCompra}
                 onChange={(e) => setOrdenCompra(e.target.value)}
-                placeholder={empresaSeleccionada?.nombre.toLowerCase().includes('enel') ? 'Número de conformidad' : '12345678'}
+                placeholder={usaLclConformidad(empresaSeleccionada?.nombre ?? '') ? 'Número de conformidad' : '12345678'}
                 className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-oca-blue focus:border-oca-blue text-sm sm:text-base"
               />
             </div>
             <div>
               <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">
-                {empresaSeleccionada?.nombre.toLowerCase().includes('enel') ? 'LCL' : 'HES'}
+                {usaLclConformidad(empresaSeleccionada?.nombre ?? '') ? 'LCL' : 'HES'}
               </label>
               <input
                 type="text"
                 value={hes}
                 onChange={(e) => setHes(e.target.value)}
-                placeholder={empresaSeleccionada?.nombre.toLowerCase().includes('enel') ? 'Número de conformidad' : '1234567890'}
+                placeholder={usaLclConformidad(empresaSeleccionada?.nombre ?? '') ? 'Número de conformidad' : '1234567890'}
                 className="w-full px-3 sm:px-4 py-2 sm:py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-oca-blue focus:border-oca-blue text-sm sm:text-base"
               />
             </div>

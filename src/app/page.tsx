@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import Image from 'next/image';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
@@ -12,10 +12,16 @@ import {
   PlantillaConfig,
   TipoPlantilla
 } from '@/lib/excelGenerator';
+import { getEmpresaAbreviada, usaLclConformidad } from '@/lib/data';
+import { detectarDuplicados, duplicadoKey } from '@/lib/validations';
 import PlantillaConfigModal from '@/components/PlantillaConfigModal';
 import FacturaManualForm from '@/components/FacturaManualForm';
+import ValidacionDuplicadosModal from '@/components/ValidacionDuplicadosModal';
 
 type ModoIngreso = 'excel' | 'manual';
+
+const STORAGE_KEY_FACTURAS = 'oca:facturas-pendientes';
+const STORAGE_KEY_CONFIG = 'oca:configuracion-excel';
 
 export default function Home() {
   const [isDragging, setIsDragging] = useState(false);
@@ -31,6 +37,9 @@ export default function Home() {
   const [showFormularioManual, setShowFormularioManual] = useState(false);
   const [facturaEditandoIndex, setFacturaEditandoIndex] = useState<number | null>(null);
   const [configuracionExcel, setConfiguracionExcel] = useState<PlantillaConfig | null>(null);
+  const [persistHidratado, setPersistHidratado] = useState(false);
+  const [showValidacionModal, setShowValidacionModal] = useState(false);
+  const [duplicadosAprobados, setDuplicadosAprobados] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -43,6 +52,50 @@ export default function Home() {
       .then(buffer => setPlantillaAntiguaBuffer(buffer))
       .catch(() => { /* opcional */ });
   }, []);
+
+  // Hidratar facturas y configuración desde localStorage al montar
+  useEffect(() => {
+    try {
+      const rawFacturas = localStorage.getItem(STORAGE_KEY_FACTURAS);
+      if (rawFacturas) {
+        const parsed = JSON.parse(rawFacturas) as FacturaData[];
+        // Revivir Date en cada factura
+        const restauradas = parsed.map(f => ({ ...f, fecha: new Date(f.fecha) }));
+        setFacturas(restauradas);
+      }
+      const rawConfig = localStorage.getItem(STORAGE_KEY_CONFIG);
+      if (rawConfig) {
+        setConfiguracionExcel(JSON.parse(rawConfig) as PlantillaConfig);
+      }
+    } catch {
+      // localStorage corrupto: ignorar silenciosamente y arrancar limpio
+    } finally {
+      setPersistHidratado(true);
+    }
+  }, []);
+
+  // Persistir cambios después de la hidratación (evita pisar con [] en el primer render)
+  useEffect(() => {
+    if (!persistHidratado) return;
+    try {
+      if (facturas.length > 0) {
+        localStorage.setItem(STORAGE_KEY_FACTURAS, JSON.stringify(facturas));
+      } else {
+        localStorage.removeItem(STORAGE_KEY_FACTURAS);
+      }
+    } catch { /* cuota llena u otro */ }
+  }, [facturas, persistHidratado]);
+
+  useEffect(() => {
+    if (!persistHidratado) return;
+    try {
+      if (configuracionExcel) {
+        localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify(configuracionExcel));
+      } else {
+        localStorage.removeItem(STORAGE_KEY_CONFIG);
+      }
+    } catch { /* cuota llena u otro */ }
+  }, [configuracionExcel, persistHidratado]);
 
   const descargarPlantilla = async (config?: PlantillaConfig) => {
     setStatus('Generando plantilla...');
@@ -130,7 +183,43 @@ export default function Home() {
     }
   };
 
-  const generarTodas = async () => {
+  // Duplicados detectados y los que aún no fueron aprobados manualmente
+  const duplicadosDetectados = useMemo(() => detectarDuplicados(facturas), [facturas]);
+  const duplicadosPendientes = useMemo(
+    () => duplicadosDetectados.filter(d => !duplicadosAprobados.has(duplicadoKey(d))),
+    [duplicadosDetectados, duplicadosAprobados]
+  );
+
+  // Limpia aprobaciones cuyos grupos ya no existen (porque el usuario editó/eliminó)
+  useEffect(() => {
+    if (duplicadosAprobados.size === 0) return;
+    const vigentes = new Set(duplicadosDetectados.map(d => duplicadoKey(d)));
+    let necesitaPoda = false;
+    duplicadosAprobados.forEach(k => { if (!vigentes.has(k)) necesitaPoda = true; });
+    if (necesitaPoda) {
+      const podadas = new Set<string>();
+      duplicadosAprobados.forEach(k => { if (vigentes.has(k)) podadas.add(k); });
+      setDuplicadosAprobados(podadas);
+    }
+  }, [duplicadosDetectados, duplicadosAprobados]);
+
+  const handleAprobarDuplicado = (key: string) => {
+    setDuplicadosAprobados(prev => {
+      const next = new Set(prev);
+      next.add(key);
+      return next;
+    });
+  };
+
+  const handleDesaprobarDuplicado = (key: string) => {
+    setDuplicadosAprobados(prev => {
+      const next = new Set(prev);
+      next.delete(key);
+      return next;
+    });
+  };
+
+  const generarTodasInterno = async () => {
     if (facturas.length === 0) return;
     if (!plantillaNuevaBuffer) {
       setError('Plantilla nueva no disponible');
@@ -143,10 +232,20 @@ export default function Home() {
     try {
       const zip = new JSZip();
 
-      for (let i = 0; i < facturas.length; i++) {
-        const factura = facturas[i];
-        setStatus(`Generando factura ${i + 1} de ${facturas.length}...`);
-        setProgress(Math.round(((i + 1) / facturas.length) * 100));
+      // Ordenar facturas por número de OT (centroCosto) ascendente para que el zip salga ordenado
+      const facturasOrdenadas = [...facturas].sort((a, b) => {
+        const numA = parseInt((a.centroCosto || '').replace(/\D/g, ''), 10);
+        const numB = parseInt((b.centroCosto || '').replace(/\D/g, ''), 10);
+        const safeA = Number.isFinite(numA) ? numA : Number.MAX_SAFE_INTEGER;
+        const safeB = Number.isFinite(numB) ? numB : Number.MAX_SAFE_INTEGER;
+        if (safeA !== safeB) return safeA - safeB;
+        return (a.centroCosto || '').localeCompare(b.centroCosto || '');
+      });
+
+      for (let i = 0; i < facturasOrdenadas.length; i++) {
+        const factura = facturasOrdenadas[i];
+        setStatus(`Generando factura ${i + 1} de ${facturasOrdenadas.length}...`);
+        setProgress(Math.round(((i + 1) / facturasOrdenadas.length) * 100));
 
         const tipo: TipoPlantilla = factura.tipoPlantilla || 'nueva';
         const bufferUsado = tipo === 'antigua' ? plantillaAntiguaBuffer : plantillaNuevaBuffer;
@@ -157,26 +256,22 @@ export default function Home() {
         const blob = await generarFactura(bufferUsado, factura, tipo);
         // Generar nombre con nomenclatura LCL/HES/OC
         let identificador = `F${i + 1}`;
-        const esEnel = factura.empresa.toLowerCase().includes('enel');
+        const usaLcl = usaLclConformidad(factura.empresa);
         if (factura.hes) {
           const numero = factura.hes.replace(/^(HES|LCL)\s*/i, '');
-          identificador = esEnel ? `LCL_${numero}` : `HES_${numero}`;
+          identificador = usaLcl ? `LCL_${numero}` : `HES_${numero}`;
         } else if (factura.ordenCompra) {
           const ocNumero = factura.ordenCompra.replace(/^OC\s*/i, '');
           identificador = `OC_${ocNumero}`;
         }
-        // Abreviar nombre de empresa para evitar caracteres especiales
-        let empresaAbrev = factura.empresa;
-        if (factura.empresa.toLowerCase().includes('compañía general de electricidad')) {
-          empresaAbrev = 'CGE';
-        } else if (esEnel) {
-          empresaAbrev = 'ENEL';
-        } else {
-          empresaAbrev = factura.empresa.substring(0, 15).replace(/[^a-zA-Z0-9]/g, '_');
-        }
+        const empresaAbrev = getEmpresaAbreviada(factura.empresa);
         const nombreArchivo = `Solicitud_Factura_${empresaAbrev}_${identificador}.xlsx`;
 
-        zip.file(nombreArchivo, blob);
+        // Agrupar por carpeta según el número de OT (centroCosto)
+        const otNumero = (factura.centroCosto || '').replace(/\D/g, '');
+        const otCarpeta = otNumero ? `OT_${otNumero.replace(/^0+/, '') || '0'}` : 'OT_sin_numero';
+
+        zip.file(`${otCarpeta}/${nombreArchivo}`, blob);
       }
 
       setStatus('Comprimiendo archivos...');
@@ -188,12 +283,23 @@ export default function Home() {
       setStatus(`${facturas.length} facturas generadas exitosamente`);
       setFacturas([]);
       setConfiguracionExcel(null);
+      setDuplicadosAprobados(new Set());
       setProgress(0);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error generando facturas');
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  // Botón "Generar" del usuario: si hay duplicados pendientes, abre el modal
+  // en vez de generar directamente.
+  const generarTodas = () => {
+    if (duplicadosPendientes.length > 0) {
+      setShowValidacionModal(true);
+      return;
+    }
+    generarTodasInterno();
   };
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -226,6 +332,26 @@ export default function Home() {
   };
 
   const totalMonto = facturas.reduce((sum, f) => sum + f.monto, 0);
+
+  // Agrupa facturas por OT (centro de costo) preservando el índice original.
+  // Permite que los handlers de editar/eliminar sigan recibiendo el índice real.
+  const facturasPorOT = useMemo(() => {
+    type FacturaConIndice = { factura: FacturaData; index: number };
+    const groups = new Map<string, FacturaConIndice[]>();
+    facturas.forEach((factura, index) => {
+      const raw = (factura.centroCosto || '').replace(/\D/g, '');
+      const key = raw ? (raw.replace(/^0+/, '') || '0') : 'sin_numero';
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push({ factura, index });
+    });
+    return new Map(
+      [...groups.entries()].sort((a, b) => {
+        const na = a[0] === 'sin_numero' ? Number.MAX_SAFE_INTEGER : parseInt(a[0], 10);
+        const nb = b[0] === 'sin_numero' ? Number.MAX_SAFE_INTEGER : parseInt(b[0], 10);
+        return na - nb;
+      })
+    );
+  }, [facturas]);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -462,114 +588,157 @@ export default function Home() {
                   {/* Preview - Cards on mobile, Table on desktop */}
                   <div className="bg-slate-50 rounded-lg p-2 sm:p-4 mb-4 sm:mb-5 max-h-64 overflow-y-auto">
                     {/* Mobile Cards */}
-                    <div className="sm:hidden space-y-2">
-                      {facturas.map((f, i) => (
-                        <div key={i} className="bg-white rounded-lg p-3 shadow-sm border border-gray-100">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-grow min-w-0">
-                              <p className="font-medium text-gray-800 text-sm truncate">{f.empresa}</p>
-                              <div className="flex items-center gap-2 mt-1">
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-oca-blue-lighter text-oca-blue">
-                                  {(() => {
-                                    const esEnel = f.empresa.toLowerCase().includes('enel');
-                                    const valor = f.hes || f.ordenCompra || '-';
-                                    const numero = valor.replace(/^(HES|LCL|OC)\s*/i, '');
-                                    if (f.hes) return esEnel ? `LCL ${numero}` : numero;
-                                    return numero;
-                                  })()}
-                                </span>
-                                <span className="text-xs text-gray-400">{f.condicionPago}d</span>
-                              </div>
-                            </div>
-                            <div className="text-right flex-shrink-0">
-                              <p className="font-semibold text-gray-800 text-sm">${f.monto.toLocaleString('es-CL')}</p>
-                              <div className="flex gap-1 mt-1 justify-end">
-                                <button
-                                  onClick={() => handleEditarFactura(i)}
-                                  className="p-1.5 bg-amber-50 hover:bg-amber-100 rounded transition-all"
-                                >
-                                  <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                  </svg>
-                                </button>
-                                <button
-                                  onClick={() => handleEliminarFactura(i)}
-                                  className="p-1.5 bg-red-50 hover:bg-red-100 rounded transition-all"
-                                >
-                                  <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                  </svg>
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Desktop Table */}
-                    <table className="w-full hidden sm:table">
-                      <thead>
-                        <tr>
-                          <th className="table-header">#</th>
-                          <th className="table-header">Empresa</th>
-                          <th className="table-header">LCL/HES/OC</th>
-                          <th className="table-header">Pago</th>
-                          <th className="table-header text-right">Monto</th>
-                          <th className="table-header"></th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {facturas.map((f, i) => (
-                          <tr key={i} className="table-row group">
-                            <td className="table-cell text-gray-400 font-medium">{i + 1}</td>
-                            <td className="table-cell font-medium text-gray-700">
-                              {f.empresa.length > 30 ? f.empresa.substring(0, 30) + '...' : f.empresa}
-                            </td>
-                            <td className="table-cell">
-                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-oca-blue-lighter text-oca-blue">
-                                {(() => {
-                                  const esEnel = f.empresa.toLowerCase().includes('enel');
-                                  const valor = f.hes || f.ordenCompra || '-';
-                                  const numero = valor.replace(/^(HES|LCL|OC)\s*/i, '');
-                                  if (f.hes) return esEnel ? `LCL ${numero}` : numero;
-                                  return numero;
-                                })()}
+                    {[...facturasPorOT.entries()].map(([otKey, items]) => {
+                      const otLabel = otKey === 'sin_numero' ? 'Sin OT' : `OT ${otKey}`;
+                      const subtotal = items.reduce((sum, it) => sum + it.factura.monto, 0);
+                      return (
+                        <div key={otKey} className="mb-4 last:mb-0">
+                          {/* Encabezado de grupo */}
+                          <div className="flex items-center justify-between bg-oca-blue-lighter border border-oca-blue/20 rounded-md px-3 py-1.5 mb-2">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs sm:text-sm font-semibold text-oca-blue">{otLabel}</span>
+                              <span className="text-xs text-gray-500">
+                                · {items.length} solicitud{items.length > 1 ? 'es' : ''}
                               </span>
-                            </td>
-                            <td className="table-cell text-gray-500 text-sm">
-                              {f.condicionPago}d
-                            </td>
-                            <td className="table-cell text-right font-semibold text-gray-800">
-                              ${f.monto.toLocaleString('es-CL')}
-                            </td>
-                            <td className="table-cell">
-                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                                <button
-                                  onClick={() => handleEditarFactura(i)}
-                                  className="p-1 hover:bg-amber-100 rounded transition-all"
-                                  title="Editar factura"
-                                >
-                                  <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                  </svg>
-                                </button>
-                                <button
-                                  onClick={() => handleEliminarFactura(i)}
-                                  className="p-1 hover:bg-red-100 rounded transition-all"
-                                  title="Eliminar factura"
-                                >
-                                  <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                  </svg>
-                                </button>
+                            </div>
+                            <span className="text-xs sm:text-sm font-semibold text-gray-700">
+                              ${subtotal.toLocaleString('es-CL')}
+                            </span>
+                          </div>
+
+                          {/* Mobile Cards */}
+                          <div className="sm:hidden space-y-2">
+                            {items.map(({ factura: f, index: i }) => (
+                              <div key={i} className="bg-white rounded-lg p-3 shadow-sm border border-gray-100">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex-grow min-w-0">
+                                    <p className="font-medium text-gray-800 text-sm truncate">{f.empresa}</p>
+                                    <div className="flex items-center gap-2 mt-1">
+                                      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-oca-blue-lighter text-oca-blue">
+                                        {(() => {
+                                          const usaLcl = usaLclConformidad(f.empresa);
+                                          const valor = f.hes || f.ordenCompra || '-';
+                                          const numero = valor.replace(/^(HES|LCL|OC)\s*/i, '');
+                                          if (f.hes) return usaLcl ? `LCL ${numero}` : numero;
+                                          return numero;
+                                        })()}
+                                      </span>
+                                      <span className="text-xs text-gray-400">{f.condicionPago}d</span>
+                                    </div>
+                                  </div>
+                                  <div className="text-right flex-shrink-0">
+                                    <p className="font-semibold text-gray-800 text-sm">${f.monto.toLocaleString('es-CL')}</p>
+                                    <div className="flex gap-1 mt-1 justify-end">
+                                      <button
+                                        onClick={() => handleEditarFactura(i)}
+                                        className="p-1.5 bg-amber-50 hover:bg-amber-100 rounded transition-all"
+                                      >
+                                        <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                        </svg>
+                                      </button>
+                                      <button
+                                        onClick={() => handleEliminarFactura(i)}
+                                        className="p-1.5 bg-red-50 hover:bg-red-100 rounded transition-all"
+                                      >
+                                        <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
                               </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                            ))}
+                          </div>
+
+                          {/* Desktop Table */}
+                          <table className="w-full hidden sm:table">
+                            <thead>
+                              <tr>
+                                <th className="table-header">#</th>
+                                <th className="table-header">Empresa</th>
+                                <th className="table-header">LCL/HES/OC</th>
+                                <th className="table-header">Pago</th>
+                                <th className="table-header text-right">Monto</th>
+                                <th className="table-header"></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {items.map(({ factura: f, index: i }) => (
+                                <tr key={i} className="table-row group">
+                                  <td className="table-cell text-gray-400 font-medium">{i + 1}</td>
+                                  <td className="table-cell font-medium text-gray-700">
+                                    {f.empresa.length > 30 ? f.empresa.substring(0, 30) + '...' : f.empresa}
+                                  </td>
+                                  <td className="table-cell">
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-oca-blue-lighter text-oca-blue">
+                                      {(() => {
+                                        const usaLcl = usaLclConformidad(f.empresa);
+                                        const valor = f.hes || f.ordenCompra || '-';
+                                        const numero = valor.replace(/^(HES|LCL|OC)\s*/i, '');
+                                        if (f.hes) return usaLcl ? `LCL ${numero}` : numero;
+                                        return numero;
+                                      })()}
+                                    </span>
+                                  </td>
+                                  <td className="table-cell text-gray-500 text-sm">
+                                    {f.condicionPago}d
+                                  </td>
+                                  <td className="table-cell text-right font-semibold text-gray-800">
+                                    ${f.monto.toLocaleString('es-CL')}
+                                  </td>
+                                  <td className="table-cell">
+                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                                      <button
+                                        onClick={() => handleEditarFactura(i)}
+                                        className="p-1 hover:bg-amber-100 rounded transition-all"
+                                        title="Editar factura"
+                                      >
+                                        <svg className="w-4 h-4 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                        </svg>
+                                      </button>
+                                      <button
+                                        onClick={() => handleEliminarFactura(i)}
+                                        className="p-1 hover:bg-red-100 rounded transition-all"
+                                        title="Eliminar factura"
+                                      >
+                                        <svg className="w-4 h-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      );
+                    })}
                   </div>
+
+                  {/* Banner de duplicados pendientes */}
+                  {duplicadosPendientes.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowValidacionModal(true)}
+                      className="w-full mb-4 flex items-start gap-3 bg-amber-50 border border-amber-200 hover:bg-amber-100 rounded-lg p-3 text-left transition-colors"
+                    >
+                      <svg className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M5 19h14a2 2 0 001.84-2.75L13.74 4a2 2 0 00-3.48 0L3.16 16.25A2 2 0 005 19z" />
+                      </svg>
+                      <div className="flex-grow text-xs sm:text-sm">
+                        <p className="font-semibold text-amber-800">
+                          {duplicadosPendientes.length} valor(es) repetido(s) por verificar
+                        </p>
+                        <p className="text-amber-700 mt-0.5">
+                          Toca para revisarlos. Necesitas marcar cada caso como intencional o corregirlo antes de generar.
+                        </p>
+                      </div>
+                    </button>
+                  )}
 
                   {/* Progress bar */}
                   {isProcessing && progress > 0 && (
@@ -612,6 +781,17 @@ export default function Home() {
                     </button>
                     <div className="flex gap-2 sm:gap-3">
                       <button
+                        onClick={() => setShowValidacionModal(true)}
+                        disabled={isProcessing}
+                        className="btn-secondary inline-flex items-center justify-center gap-2 flex-1 sm:flex-none text-sm sm:text-base py-2.5 sm:py-2.5"
+                        title="Revisar OC y HES/LCL duplicados"
+                      >
+                        <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Verificar
+                      </button>
+                      <button
                         onClick={() => {
                           setModoIngreso('manual');
                           setShowFormularioManual(true);
@@ -629,6 +809,7 @@ export default function Home() {
                         onClick={() => {
                           setFacturas([]);
                           setConfiguracionExcel(null);
+                          setDuplicadosAprobados(new Set());
                         }}
                         disabled={isProcessing}
                         className="btn-secondary flex-1 sm:flex-none text-sm sm:text-base py-2.5 sm:py-2.5"
@@ -715,6 +896,18 @@ export default function Home() {
         onClose={() => setShowPlantillaModal(false)}
         onDescargarConDatos={handleDescargarConDatos}
         onDescargarVacia={handleDescargarVacia}
+      />
+
+      {/* Modal de verificación de duplicados */}
+      <ValidacionDuplicadosModal
+        isOpen={showValidacionModal}
+        onClose={() => setShowValidacionModal(false)}
+        facturas={facturas}
+        aprobaciones={duplicadosAprobados}
+        onAprobar={handleAprobarDuplicado}
+        onDesaprobar={handleDesaprobarDuplicado}
+        onEditarFactura={handleEditarFactura}
+        onGenerar={generarTodasInterno}
       />
     </div>
   );

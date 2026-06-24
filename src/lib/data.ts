@@ -8,11 +8,41 @@ export interface Cliente {
   ciudad?: string;
   giro?: string;
   condicionPago: 30 | 60 | 90;
+  aliases?: string[];
+  // true cuando la empresa usa nomenclatura LCL/Conformidad en lugar de HES/OC (caso Enel)
+  usaConformidad?: boolean;
 }
 
 export const DIVISIONES = [
   { nombre: 'Control de Calidad y Asistencia Técnica', codigo: 'DCAT' },
 ];
+
+// OT considerada "principal" — sus OC/Conformidad NO se validan como duplicadas
+// porque varias solicitudes legítimamente comparten la misma OC bajo esta OT.
+export const OT_PRINCIPAL = '7';
+// Cantidad de dígitos a la que se rellena el centro de costo en las plantillas (00007)
+export const OT_PADDING = 5;
+
+// Normaliza un centro de costo a su número (sin ceros a la izquierda)
+export function normalizarOT(centroCosto: string): string {
+  if (!centroCosto) return '';
+  return centroCosto.trim().replace(/^0+/, '');
+}
+
+// Verifica si el centro de costo corresponde a una OT específica (default OT principal)
+export function esOT(centroCosto: string, ot: string = OT_PRINCIPAL): boolean {
+  if (!centroCosto) return false;
+  return normalizarOT(centroCosto) === normalizarOT(ot);
+}
+
+// Genera el ejemplo de detalle: "OT 00007 (OCA) SSTT, <mes>"
+export function generarDetalleEjemplo(
+  centroCosto: string = OT_PRINCIPAL,
+  mes: string
+): string {
+  const padded = centroCosto.padStart(OT_PADDING, '0');
+  return `OT ${padded} (OCA) SSTT, ${mes}`;
+}
 
 export const CLIENTES: Cliente[] = [
   {
@@ -23,7 +53,8 @@ export const CLIENTES: Cliente[] = [
     comuna: 'Las Condes',
     ciudad: 'Santiago',
     giro: 'Distribución de Energía Eléctrica',
-    condicionPago: 30
+    condicionPago: 30,
+    aliases: ['CGE']
   },
   {
     nombre: 'Enel Distribución Chile S.A',
@@ -33,7 +64,9 @@ export const CLIENTES: Cliente[] = [
     comuna: 'Santiago',
     ciudad: 'Santiago',
     giro: 'Distribución de Energía Eléctrica',
-    condicionPago: 30
+    condicionPago: 30,
+    aliases: ['ENEL'],
+    usaConformidad: true
   },
   {
     nombre: 'Enel Colina S.A.',
@@ -43,7 +76,9 @@ export const CLIENTES: Cliente[] = [
     comuna: 'Santiago',
     ciudad: 'Santiago',
     giro: 'Distribución de Energía Eléctrica',
-    condicionPago: 30
+    condicionPago: 30,
+    aliases: ['ENEL'],
+    usaConformidad: true
   },
   {
     nombre: 'Metrogas S.A.',
@@ -227,6 +262,46 @@ export interface EmpresaOCA {
   rut: string;
   dv: string;
   direccion: string;
+}
+
+// Busca un cliente por nombre exacto (case-insensitive) o por RUT
+export function findClienteByEmpresa(empresa: string): Cliente | undefined {
+  if (!empresa) return undefined;
+  const normalized = empresa.trim().toLowerCase();
+  return CLIENTES.find(
+    c => c.nombre.toLowerCase() === normalized || c.rut === empresa.trim()
+  );
+}
+
+// Devuelve la abreviación de la empresa para usarse en nombres de archivo.
+// Prioriza el primer alias del cliente; cae a un substring saneado del nombre.
+export function getEmpresaAbreviada(empresa: string): string {
+  const cliente = findClienteByEmpresa(empresa);
+  const alias = cliente?.aliases?.[0];
+  if (alias) return alias;
+  return (empresa || 'EMPRESA')
+    .substring(0, 15)
+    .replace(/[^a-zA-Z0-9]/g, '_');
+}
+
+// Indica si la empresa usa la nomenclatura LCL/Conformidad (Enel) en lugar de HES/OC
+export function usaLclConformidad(empresa: string): boolean {
+  const cliente = findClienteByEmpresa(empresa);
+  if (cliente?.usaConformidad !== undefined) return cliente.usaConformidad;
+  // Fallback para empresas que no estén en la lista pero contengan "enel"
+  return (empresa || '').toLowerCase().includes('enel');
+}
+
+// Filtro compartido para los inputs de búsqueda de empresa en los modales
+export function filtrarClientes(busqueda: string): Cliente[] {
+  if (!busqueda) return CLIENTES;
+  const q = busqueda.toLowerCase();
+  return CLIENTES.filter(
+    c =>
+      c.nombre.toLowerCase().includes(q) ||
+      c.rut.includes(q) ||
+      (c.aliases?.some(a => a.toLowerCase().includes(q)) ?? false)
+  );
 }
 
 export const EMPRESAS_OCA: EmpresaOCA[] = [
