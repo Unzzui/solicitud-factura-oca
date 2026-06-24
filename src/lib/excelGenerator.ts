@@ -806,7 +806,7 @@ export async function generarResumenBatch(facturas: FacturaData[]): Promise<Blob
   const headerRow = ws.addRow(headers);
   headerRow.eachCell(cell => {
     cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
-    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF294D6D' } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF000000' } };
     cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
     cell.border = {
       top: { style: 'thin' }, bottom: { style: 'thin' },
@@ -831,22 +831,21 @@ export async function generarResumenBatch(facturas: FacturaData[]): Promise<Blob
     return na - nb;
   });
 
+  // Referencias a las celdas de subtotal por grupo, para que el TOTAL sea =SUM(...) sobre ellas
+  const subtotalRefs: string[] = [];
+
   gruposOrdenados.forEach(([otKey, items]) => {
     const subtotal = items.reduce((s, it) => s + it.factura.monto, 0);
     const otLabel = otKey === 'sin_numero' ? 'Sin OT' : `OT ${otKey}`;
 
-    // Encabezado de grupo: OT (mergeada con Detalle/Empresa/OC), conteo en HES, subtotal en Monto
-    const groupRow = ws.addRow([otLabel, '', '', '', `${items.length} sol.`, subtotal]);
-    ws.mergeCells(`A${groupRow.number}:D${groupRow.number}`);
-    groupRow.eachCell(cell => {
-      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F1F8' } };
-      cell.font = { bold: true, color: { argb: 'FF294D6D' } };
-    });
-    groupRow.getCell(5).alignment = { horizontal: 'right' };
-    groupRow.getCell(6).numFmt = '$#,##0';
-    groupRow.getCell(6).alignment = { horizontal: 'right' };
+    // Encabezado de grupo: OT (mergeada con Detalle/Empresa/OC), conteo en HES, subtotal en Monto.
+    // El subtotal y el conteo se rellenan como fórmulas después de escribir las filas de detalle.
+    const groupRow = ws.addRow([otLabel, '', '', '', '', '']);
+    const groupRowNum = groupRow.number;
+    ws.mergeCells(`A${groupRowNum}:D${groupRowNum}`);
 
     // Filas de detalle
+    const firstDetailRow = groupRowNum + 1;
     items.forEach(({ factura: f }) => {
       const row = ws.addRow([
         f.centroCosto || '',
@@ -870,11 +869,36 @@ export async function generarResumenBatch(facturas: FacturaData[]): Promise<Blob
         else cell.font = { ...cell.font, size: 10 };
       });
     });
+    const lastDetailRow = firstDetailRow + items.length - 1;
+
+    // Fórmulas: subtotal del grupo y conteo de solicitudes.
+    // `result` permite que el archivo se vea bien antes de que Excel recalcule.
+    groupRow.getCell(5).value = {
+      formula: `COUNTA(A${firstDetailRow}:A${lastDetailRow})&" sol."`,
+      result: `${items.length} sol.`
+    };
+    groupRow.getCell(6).value = {
+      formula: `SUM(F${firstDetailRow}:F${lastDetailRow})`,
+      result: subtotal
+    };
+    subtotalRefs.push(`F${groupRowNum}`);
+
+    // Estilo del encabezado de grupo (aplicado después de setear las fórmulas)
+    groupRow.eachCell(cell => {
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F1F8' } };
+      cell.font = { bold: true, color: { argb: 'FF294D6D' } };
+    });
+    groupRow.getCell(5).alignment = { horizontal: 'right' };
+    groupRow.getCell(6).numFmt = '$#,##0';
+    groupRow.getCell(6).alignment = { horizontal: 'right' };
   });
 
-  // === Total general ===
+  // === Total general (fórmula sobre los subtotales) ===
   ws.addRow([]);
-  const totalRow = ws.addRow(['', '', '', '', 'TOTAL', totalMonto]);
+  const totalRow = ws.addRow(['', '', '', '', 'TOTAL', '']);
+  totalRow.getCell(6).value = subtotalRefs.length > 0
+    ? { formula: `SUM(${subtotalRefs.join(',')})`, result: totalMonto }
+    : 0;
   totalRow.getCell(5).alignment = { horizontal: 'right' };
   totalRow.getCell(5).font = { bold: true, size: 11 };
   totalRow.getCell(6).font = { bold: true, size: 11, color: { argb: 'FFFFFFFF' } };

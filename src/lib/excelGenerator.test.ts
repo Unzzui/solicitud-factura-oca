@@ -83,7 +83,6 @@ describe('generarResumenBatch', () => {
     await wb.xlsx.load(buffer);
     const ws = wb.getWorksheet('Resumen');
     expect(ws).toBeTruthy();
-    // Debe contener "TOTAL" y el monto sumado en alguna celda
     let total = 0;
     ws!.eachRow(row => {
       row.eachCell(cell => {
@@ -91,5 +90,37 @@ describe('generarResumenBatch', () => {
       });
     });
     expect(total).toBe(1);
+  });
+
+  it('los subtotales y el total son fórmulas SUM', async () => {
+    const facturas = [
+      makeFactura({ centroCosto: '00007', monto: 1000 }),
+      makeFactura({ centroCosto: '00007', monto: 500 }),
+      makeFactura({ centroCosto: '00012', monto: 2000 })
+    ];
+    const blob = await generarResumenBatch(facturas);
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(await blob.arrayBuffer());
+    const ws = wb.getWorksheet('Resumen')!;
+
+    let subtotalFormulas = 0;
+    let totalFormula = false;
+    ws.eachRow(row => {
+      row.eachCell(cell => {
+        const v = cell.value as { formula?: string } | string | number | null;
+        if (v && typeof v === 'object' && 'formula' in v && v.formula) {
+          if (v.formula.startsWith('SUM(F') && v.formula.includes(':F')) {
+            subtotalFormulas++;
+          } else if (v.formula.startsWith('SUM(F') && v.formula.includes(',')) {
+            totalFormula = true;
+          } else if (v.formula.startsWith('SUM(F')) {
+            // Total con un solo subtotal: SUM(F8)
+            totalFormula = true;
+          }
+        }
+      });
+    });
+    expect(subtotalFormulas).toBe(2); // OT 7 y OT 12
+    expect(totalFormula).toBe(true);
   });
 });
