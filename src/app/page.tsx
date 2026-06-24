@@ -280,13 +280,13 @@ export default function Home() {
       const fecha = new Date().toISOString().split('T')[0];
       saveAs(zipBlob, `Solicitud_Factura_OCA_${fecha}.zip`);
 
-      setStatus(`${facturas.length} facturas generadas exitosamente`);
+      setStatus(`${facturas.length} solicitudes de factura generadas exitosamente`);
       setFacturas([]);
       setConfiguracionExcel(null);
       setDuplicadosAprobados(new Set());
       setProgress(0);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error generando facturas');
+      setError(err instanceof Error ? err.message : 'Error generando solicitudes de factura');
     } finally {
       setIsProcessing(false);
     }
