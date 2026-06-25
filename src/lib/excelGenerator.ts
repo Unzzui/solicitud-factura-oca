@@ -116,16 +116,29 @@ export async function generarFactura(
   setCellValue(ws, 'D28', data.atencionSr);
   setCellValue(ws, 'D29', data.jefeProy);
 
-  // Detalles (preserva saltos de línea si el usuario los escribió)
-  setCellValue(ws, 'D31', data.detalle);
-  if (data.detalle && data.detalle.includes('\n')) {
+  // Detalles. Normalizamos saltos (\r\n → \n) por si el textarea entrega CRLF.
+  const detalleNormalizado = (data.detalle || '').replace(/\r\n/g, '\n');
+  setCellValue(ws, 'D31', detalleNormalizado);
+  if (detalleNormalizado.includes('\n')) {
+    // D31 sólo ocupa la columna D (muy angosta). Con wrapText activo Excel rompe
+    // por palabra dentro de ese ancho mínimo, así que hacemos merge D31:L31 para
+    // que el texto tenga el ancho visual completo de la glosa y los \n se
+    // respeten como saltos manuales.
+    const yaMergeada = (ws.model.merges || []).some(m => m === 'D31:L31');
+    if (!yaMergeada) {
+      try {
+        ws.mergeCells('D31:L31');
+      } catch {
+        // Si la celda ya está merged de otra forma, ignoramos.
+      }
+    }
     const cell = ws.getCell('D31');
-    cell.alignment = { ...(cell.alignment || {}), wrapText: true };
-    // Ajustar la altura para que se vean todas las líneas
-    const lineas = data.detalle.split('\n').length;
+    cell.alignment = { ...(cell.alignment || {}), wrapText: true, vertical: 'top' };
+    // Ajustar la altura proporcional al número de líneas
+    const lineas = detalleNormalizado.split('\n').length;
     const row = ws.getRow(31);
-    const alturaBase = row.height || 15;
-    row.height = Math.max(alturaBase, lineas * alturaBase);
+    const alturaPorLinea = 15;
+    row.height = lineas * alturaPorLinea;
   }
 
   // Formatear OC con prefijo si no lo tiene
