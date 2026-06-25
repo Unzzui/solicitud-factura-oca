@@ -220,6 +220,22 @@ export default function Home() {
     });
   };
 
+  const handleAprobarMultiples = (keys: string[]) => {
+    setDuplicadosAprobados(prev => {
+      const next = new Set(prev);
+      keys.forEach(k => next.add(k));
+      return next;
+    });
+  };
+
+  const handleDesaprobarMultiples = (keys: string[]) => {
+    setDuplicadosAprobados(prev => {
+      const next = new Set(prev);
+      keys.forEach(k => next.delete(k));
+      return next;
+    });
+  };
+
   const generarTodasInterno = async () => {
     if (facturas.length === 0) return;
     if (!plantillaNuevaBuffer) {
@@ -912,6 +928,8 @@ export default function Home() {
         aprobaciones={duplicadosAprobados}
         onAprobar={handleAprobarDuplicado}
         onDesaprobar={handleDesaprobarDuplicado}
+        onAprobarMultiples={handleAprobarMultiples}
+        onDesaprobarMultiples={handleDesaprobarMultiples}
         onEditarFactura={handleEditarFactura}
         onGenerar={generarTodasInterno}
       />

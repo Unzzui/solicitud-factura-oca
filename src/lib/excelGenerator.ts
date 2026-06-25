@@ -116,8 +116,17 @@ export async function generarFactura(
   setCellValue(ws, 'D28', data.atencionSr);
   setCellValue(ws, 'D29', data.jefeProy);
 
-  // Detalles
+  // Detalles (preserva saltos de línea si el usuario los escribió)
   setCellValue(ws, 'D31', data.detalle);
+  if (data.detalle && data.detalle.includes('\n')) {
+    const cell = ws.getCell('D31');
+    cell.alignment = { ...(cell.alignment || {}), wrapText: true };
+    // Ajustar la altura para que se vean todas las líneas
+    const lineas = data.detalle.split('\n').length;
+    const row = ws.getRow(31);
+    const alturaBase = row.height || 15;
+    row.height = Math.max(alturaBase, lineas * alturaBase);
+  }
 
   // Formatear OC con prefijo si no lo tiene
   const ocFormateada = data.ordenCompra
@@ -139,9 +148,10 @@ export async function generarFactura(
   const contactoFormateado = data.contacto ? `CONTACTO ${data.contacto}` : '';
 
   if (tipoPlantilla === 'antigua') {
-    // Plantilla antigua: OC/HES/Contacto en filas distintas y monto en columna K
+    // Plantilla antigua: OC/HES/Contacto en filas distintas
     setCellValue(ws, 'D32', '');           // Limpiar sub-detalle de ejemplo
-    setCellValue(ws, 'K32', data.monto);   // El total D45 = SUM(K32:K37) se recalcula
+    setCellValue(ws, 'K32', null);         // No usar K32 para mantener la glosa limpia
+    setCellValue(ws, 'D45', data.monto);   // Monto directo en la celda total (reemplaza fórmula SUM)
     setCellValue(ws, 'D39', ocFormateada);
     setCellValue(ws, 'D40', hesFormateada);
     setCellValue(ws, 'D41', '');           // FECHA CONFORMIDAD - limpiar ejemplo
