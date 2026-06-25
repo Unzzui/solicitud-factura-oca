@@ -5,7 +5,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Generador de Solicituds de Facturas | OCA Global",
+  title: "Generador de Solicitudes de Facturas | OCA Global",
   description: "Sistema de generación masiva de solicitudes de facturación - OCA Servicios Técnicos",
   icons: {
     icon: "/favicon.png",
