@@ -27,7 +27,6 @@ interface Props {
 type FiltroTipo = 'todos' | 'OC' | 'HES';
 type FiltroEstado = 'pendientes' | 'aprobados' | 'todos';
 
-// Etiqueta legible para el tipo: para Enel se prefiere LCL/Conformidad
 function etiquetaTipo(tipo: TipoDuplicado, empresa: string): string {
   const usaLcl = usaLclConformidad(empresa);
   if (tipo === 'OC') return usaLcl ? 'Conformidad' : 'OC';
@@ -106,56 +105,50 @@ export default function ValidacionDuplicadosModal({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Verificar duplicados">
-      <div className="space-y-3">
+      <div className="space-y-4">
         {grupos.length === 0 ? (
-          <div className="flex flex-col items-center text-center py-6">
-            <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center mb-3">
-              <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <p className="font-medium text-gray-800">Sin duplicados</p>
-            <p className="text-sm text-gray-500 mt-1">
-              Ninguna OC ni HES/LCL se repite entre las {facturas.length} solicitudes cargadas.
+          <div className="flex flex-col items-center text-center py-8">
+            <svg className="w-8 h-8 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 13l4 4L19 7" />
+            </svg>
+            <p className="text-sm text-gray-700">Sin duplicados</p>
+            <p className="text-xs text-gray-400 mt-1">
+              {facturas.length} solicitudes verificadas
             </p>
           </div>
         ) : (
           <>
             {/* Resumen */}
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <div className="bg-gray-50 rounded-lg p-2">
-                <div className="text-lg font-semibold text-gray-800">{grupos.length}</div>
-                <div className="text-[10px] uppercase tracking-wide text-gray-500">Total</div>
-              </div>
-              <div className="bg-amber-50 rounded-lg p-2">
-                <div className="text-lg font-semibold text-amber-700">{pendientesTotal.length}</div>
-                <div className="text-[10px] uppercase tracking-wide text-amber-600">Pendientes</div>
-              </div>
-              <div className="bg-emerald-50 rounded-lg p-2">
-                <div className="text-lg font-semibold text-emerald-700">{aprobadosTotal.length}</div>
-                <div className="text-[10px] uppercase tracking-wide text-emerald-600">Aprobados</div>
-              </div>
+            <div className="flex items-baseline gap-4 text-sm text-gray-600">
+              <span>
+                <span className="text-lg font-medium text-gray-900">{grupos.length}</span>
+                <span className="ml-1 text-xs text-gray-400">duplicados</span>
+              </span>
+              <span className="text-gray-300">·</span>
+              <span>
+                <span className="font-medium text-gray-900">{pendientesTotal.length}</span>
+                <span className="ml-1 text-xs text-gray-400">pendientes</span>
+              </span>
+              <span className="text-gray-300">·</span>
+              <span>
+                <span className="font-medium text-gray-900">{aprobadosTotal.length}</span>
+                <span className="ml-1 text-xs text-gray-400">aprobados</span>
+              </span>
             </div>
 
             {/* Aceptar todos + nota de HES */}
             {pendientesTotal.length > 0 && (
-              <div className="rounded-lg border border-amber-300 bg-amber-50 p-3 space-y-2">
-                <div className="flex items-start gap-2 text-xs text-amber-800">
-                  <svg className="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M4.93 19h14.14a2 2 0 001.74-3l-7.07-12a2 2 0 00-3.48 0L3.19 16a2 2 0 001.74 3z" />
-                  </svg>
-                  <div>
-                    <strong>Revisa especialmente las HES/LCL:</strong> la OC suele repetirse de
-                    forma legítima (varios EP sobre la misma OC), pero la <strong>HES/LCL
-                    normalmente no debería repetirse</strong>. Verifica cada una antes de aceptar
-                    en masa.
-                  </div>
-                </div>
+              <div className="border border-gray-200 rounded-lg p-3 space-y-2.5">
+                <p className="text-xs text-gray-600 leading-relaxed">
+                  La OC suele repetirse de forma legítima (varios EP sobre la misma OC).
+                  La <span className="text-gray-900 font-medium">HES/LCL normalmente no debería repetirse</span> —
+                  verifícalas antes de aceptar en masa.
+                </p>
                 <button
                   onClick={aprobarTodos}
-                  className="w-full py-2 px-3 rounded bg-amber-600 text-white text-sm font-medium hover:bg-amber-700 transition-colors"
+                  className="w-full py-1.5 px-3 rounded border border-gray-300 bg-white text-gray-700 text-xs font-medium hover:bg-gray-50 transition-colors"
                 >
-                  Aceptar todos ({pendientesTotal.length}) — ya verifiqué las HES/LCL
+                  Aceptar los {pendientesTotal.length} pendientes
                 </button>
               </div>
             )}
@@ -165,54 +158,56 @@ export default function ValidacionDuplicadosModal({
               type="text"
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
-              placeholder="Buscar por número de OC / HES / LCL…"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-oca-blue focus:border-oca-blue"
+              placeholder="Buscar OC / HES / LCL…"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm placeholder:text-gray-400 focus:border-gray-400 focus:outline-none"
             />
 
             {/* Filtros */}
-            <div className="flex flex-wrap gap-1.5 text-xs">
-              <FilterChip active={filtroTipo === 'todos'} onClick={() => setFiltroTipo('todos')}>
-                Todos ({grupos.length})
-              </FilterChip>
-              <FilterChip active={filtroTipo === 'OC'} onClick={() => setFiltroTipo('OC')}>
-                OC ({conteosOC})
-              </FilterChip>
-              <FilterChip active={filtroTipo === 'HES'} onClick={() => setFiltroTipo('HES')}>
-                HES/LCL ({conteosHES})
-              </FilterChip>
-              <span className="w-px bg-gray-200 mx-1" />
-              <FilterChip active={filtroEstado === 'pendientes'} onClick={() => setFiltroEstado('pendientes')}>
-                Pendientes
-              </FilterChip>
-              <FilterChip active={filtroEstado === 'aprobados'} onClick={() => setFiltroEstado('aprobados')}>
-                Aprobados
-              </FilterChip>
-              <FilterChip active={filtroEstado === 'todos'} onClick={() => setFiltroEstado('todos')}>
-                Ver todos
-              </FilterChip>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs">
+              <div className="flex gap-1">
+                <FilterChip active={filtroTipo === 'todos'} onClick={() => setFiltroTipo('todos')}>
+                  Todos · {grupos.length}
+                </FilterChip>
+                <FilterChip active={filtroTipo === 'OC'} onClick={() => setFiltroTipo('OC')}>
+                  OC · {conteosOC}
+                </FilterChip>
+                <FilterChip active={filtroTipo === 'HES'} onClick={() => setFiltroTipo('HES')}>
+                  HES/LCL · {conteosHES}
+                </FilterChip>
+              </div>
+              <span className="hidden sm:block w-px h-4 bg-gray-200" />
+              <div className="flex gap-1">
+                <FilterChip active={filtroEstado === 'pendientes'} onClick={() => setFiltroEstado('pendientes')}>
+                  Pendientes
+                </FilterChip>
+                <FilterChip active={filtroEstado === 'aprobados'} onClick={() => setFiltroEstado('aprobados')}>
+                  Aprobados
+                </FilterChip>
+                <FilterChip active={filtroEstado === 'todos'} onClick={() => setFiltroEstado('todos')}>
+                  Todos
+                </FilterChip>
+              </div>
             </div>
 
             {/* Acciones masivas */}
             {(pendientesVisibles.length > 0 || aprobadosVisibles.length > 0) && (
-              <div className="flex flex-wrap gap-2 items-center text-xs bg-gray-50 rounded-lg p-2">
-                <span className="text-gray-500">
-                  {gruposFiltrados.length} visible(s)
-                </span>
+              <div className="flex flex-wrap gap-2 items-center text-xs text-gray-500">
+                <span>{gruposFiltrados.length} visible(s)</span>
                 <div className="flex-1" />
                 {pendientesVisibles.length > 0 && (
                   <button
                     onClick={aprobarVisibles}
-                    className="px-3 py-1.5 rounded bg-emerald-500 text-white hover:bg-emerald-600 transition-colors font-medium"
+                    className="px-2.5 py-1 rounded text-gray-700 hover:bg-gray-100 transition-colors"
                   >
-                    Marcar OK los {pendientesVisibles.length} visibles
+                    Aceptar visibles ({pendientesVisibles.length})
                   </button>
                 )}
                 {aprobadosVisibles.length > 0 && (
                   <button
                     onClick={desaprobarVisibles}
-                    className="px-3 py-1.5 rounded border border-gray-300 text-gray-700 hover:bg-white transition-colors font-medium"
+                    className="px-2.5 py-1 rounded text-gray-700 hover:bg-gray-100 transition-colors"
                   >
-                    Desmarcar {aprobadosVisibles.length} visibles
+                    Desmarcar visibles ({aprobadosVisibles.length})
                   </button>
                 )}
               </div>
@@ -220,11 +215,11 @@ export default function ValidacionDuplicadosModal({
 
             {/* Lista */}
             {gruposFiltrados.length === 0 ? (
-              <div className="text-center py-6 text-sm text-gray-500">
-                No hay duplicados que coincidan con el filtro.
+              <div className="text-center py-8 text-sm text-gray-400">
+                Sin resultados
               </div>
             ) : (
-              <div className="space-y-1.5 max-h-[50vh] overflow-y-auto pr-1">
+              <div className="divide-y divide-gray-100 border border-gray-200 rounded-lg max-h-[50vh] overflow-y-auto">
                 {gruposFiltrados.map(grupo => {
                   const key = duplicadoKey(grupo);
                   return (
@@ -249,24 +244,24 @@ export default function ValidacionDuplicadosModal({
           </>
         )}
 
-        <div className="border-t border-gray-200 pt-3 flex flex-col sm:flex-row gap-2">
+        <div className="border-t border-gray-100 pt-3 flex flex-col sm:flex-row gap-2">
           <button
             onClick={() => {
               onClose();
               if (puedeGenerar) onGenerar();
             }}
             disabled={!puedeGenerar}
-            className={`flex-1 py-2.5 px-4 rounded-lg font-medium transition-all flex items-center justify-center gap-2 text-sm ${
+            className={`flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-colors ${
               puedeGenerar
-                ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-md'
-                : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                ? 'bg-gray-900 text-white hover:bg-gray-800'
+                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
             }`}
           >
             {puedeGenerar ? 'Generar facturas' : `Quedan ${pendientesTotal.length} por resolver`}
           </button>
           <button
             onClick={onClose}
-            className="px-4 py-2.5 rounded-lg font-medium text-gray-600 hover:bg-gray-100 transition-colors text-sm"
+            className="px-4 py-2.5 rounded-lg font-medium text-sm text-gray-600 hover:bg-gray-100 transition-colors"
           >
             Volver
           </button>
@@ -288,10 +283,10 @@ function FilterChip({
   return (
     <button
       onClick={onClick}
-      className={`px-2.5 py-1 rounded-full border transition-colors ${
+      className={`px-2.5 py-1 rounded transition-colors ${
         active
-          ? 'bg-oca-blue text-white border-oca-blue'
-          : 'bg-white text-gray-600 border-gray-200 hover:border-gray-300'
+          ? 'bg-gray-900 text-white'
+          : 'text-gray-600 hover:bg-gray-100'
       }`}
     >
       {children}
@@ -322,19 +317,17 @@ function GrupoFila({
 }: GrupoFilaProps) {
   const primera = facturas[grupo.indices[0]];
   const etiqueta = etiquetaTipo(grupo.tipo, primera?.empresa ?? '');
-  const colorBorde = isAprobado ? 'border-emerald-200 bg-emerald-50/40' : 'border-amber-200 bg-amber-50/40';
-  const colorTipo = isAprobado ? 'text-emerald-700 bg-emerald-100' : 'text-amber-700 bg-amber-100';
 
   return (
-    <div className={`border rounded-lg ${colorBorde}`}>
-      <div className="flex items-center gap-2 p-2">
+    <div className={isAprobado ? 'bg-gray-50/60' : ''}>
+      <div className="flex items-center gap-2 px-3 py-2">
         <button
           onClick={onToggleExpand}
-          className="text-gray-400 hover:text-gray-600 flex-shrink-0"
+          className="text-gray-400 hover:text-gray-700 flex-shrink-0"
           aria-label={isExpanded ? 'Ocultar facturas' : 'Ver facturas'}
         >
           <svg
-            className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+            className={`w-3.5 h-3.5 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -342,49 +335,47 @@ function GrupoFila({
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
         </button>
-        <span className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded ${colorTipo} flex-shrink-0`}>
+        <span className="text-[10px] uppercase tracking-wider text-gray-400 w-12 flex-shrink-0">
           {etiqueta}
         </span>
-        <span className="text-sm font-mono text-gray-800 break-all flex-1 min-w-0">
+        <span className={`text-sm font-mono break-all flex-1 min-w-0 ${isAprobado ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
           {grupo.valor}
         </span>
-        <span className="text-xs text-gray-500 flex-shrink-0">
+        <span className="text-xs text-gray-400 flex-shrink-0 tabular-nums">
           ×{grupo.indices.length}
         </span>
         {isAprobado ? (
           <button
             onClick={onDesaprobar}
-            className="text-xs px-2 py-1 rounded text-emerald-700 hover:bg-emerald-100 transition-colors flex-shrink-0"
+            className="text-xs px-2 py-1 rounded text-gray-500 hover:bg-gray-200 transition-colors flex-shrink-0"
           >
             Desmarcar
           </button>
         ) : (
           <button
             onClick={onAprobar}
-            className="text-xs px-2.5 py-1 rounded bg-emerald-500 text-white hover:bg-emerald-600 transition-colors flex-shrink-0"
+            className="text-xs px-2.5 py-1 rounded text-gray-700 hover:bg-gray-100 transition-colors flex-shrink-0"
           >
-            OK
+            Aceptar
           </button>
         )}
       </div>
       {isExpanded && (
-        <ul className="border-t border-gray-200/60 px-2 py-1.5 space-y-1">
+        <ul className="px-3 pb-2 pl-9 space-y-0.5">
           {grupo.indices.map(idx => {
             const f = facturas[idx];
             if (!f) return null;
             return (
-              <li key={idx} className="flex items-center justify-between gap-2 text-xs px-1 py-1">
-                <div className="min-w-0 flex-grow">
-                  <span className="text-gray-400">#{idx + 1}</span>{' '}
-                  <span className="font-medium text-gray-800">{f.empresa}</span>
-                  {f.centroCosto && (
-                    <span className="text-gray-500"> · OT {f.centroCosto}</span>
-                  )}
-                  <span className="text-gray-500"> · ${f.monto.toLocaleString('es-CL')}</span>
+              <li key={idx} className="flex items-center justify-between gap-2 text-xs py-0.5">
+                <div className="min-w-0 flex-grow text-gray-500">
+                  <span className="text-gray-300">#{idx + 1}</span>{' '}
+                  <span className="text-gray-700">{f.empresa}</span>
+                  {f.centroCosto && <span> · OT {f.centroCosto}</span>}
+                  <span> · ${f.monto.toLocaleString('es-CL')}</span>
                 </div>
                 <button
                   onClick={() => onEditarFactura(idx)}
-                  className="text-oca-blue hover:underline flex-shrink-0"
+                  className="text-gray-500 hover:text-gray-900 hover:underline flex-shrink-0"
                 >
                   Editar
                 </button>
