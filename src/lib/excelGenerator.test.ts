@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import ExcelJS from 'exceljs';
-import { parsearDatosExcel, generarResumenBatch, FacturaData } from './excelGenerator';
+import { parsearDatosExcel, generarResumenBatch, parsearFecha, FacturaData } from './excelGenerator';
 
 // Construye un buffer de "Datos Facturas" en formato completo (sin hoja Config).
 // Cada fila es una factura completa (18 columnas).
@@ -122,5 +122,25 @@ describe('generarResumenBatch', () => {
     });
     expect(subtotalFormulas).toBe(2); // OT 7 y OT 12
     expect(totalFormula).toBe(true);
+  });
+});
+
+describe('parsearFecha', () => {
+  it('respeta el día de una fecha de Excel (UTC) sin retroceder por zona horaria', () => {
+    // ExcelJS entrega 13-07-2026 como 2026-07-13T00:00:00Z; en Chile (UTC-4) leerla
+    // con getDate() daría 12.
+    const fecha = parsearFecha(new Date(Date.UTC(2026, 6, 13)));
+    expect(fecha.getDate()).toBe(13);
+    expect(fecha.getMonth()).toBe(6);
+    expect(fecha.getFullYear()).toBe(2026);
+  });
+
+  it('acepta los formatos de texto usados en la plantilla', () => {
+    const esperado = (f: Date) => [f.getDate(), f.getMonth() + 1, f.getFullYear()];
+    expect(esperado(parsearFecha('13/07/2026'))).toEqual([13, 7, 2026]);
+    expect(esperado(parsearFecha('13-07-2026'))).toEqual([13, 7, 2026]);
+    expect(esperado(parsearFecha('2026-07-13'))).toEqual([13, 7, 2026]);
+    expect(esperado(parsearFecha('7/13/2026'))).toEqual([13, 7, 2026]); // formato gringo
+    expect(esperado(parsearFecha(46216))).toEqual([13, 7, 2026]);       // serial de Excel
   });
 });

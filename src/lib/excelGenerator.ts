@@ -52,7 +52,11 @@ export interface FacturaData {
 // Acepta Date, serial de Excel, y texto tipo dd/mm/aaaa, dd-mm-aaaa o aaaa-mm-dd.
 // Si no se reconoce nada, cae en la fecha de hoy.
 export function parsearFecha(valor: unknown): Date {
-  if (valor instanceof Date && !isNaN(valor.getTime())) return valor;
+  // ExcelJS entrega las fechas del archivo en UTC (13-07 00:00Z). Si las leyéramos
+  // con getDate() en un huso negativo (Chile, UTC-4) caeríamos al día anterior.
+  if (valor instanceof Date && !isNaN(valor.getTime())) {
+    return new Date(valor.getUTCFullYear(), valor.getUTCMonth(), valor.getUTCDate());
+  }
 
   // Celda con fórmula o rich text: ExcelJS entrega un objeto
   if (valor && typeof valor === 'object') {
@@ -80,13 +84,19 @@ export function parsearFecha(valor: unknown): Date {
     if (!isNaN(fecha.getTime())) return fecha;
   }
 
-  // dd/mm/aaaa o dd-mm-aaaa (también dd.mm.aa)
+  // dd/mm/aaaa o dd-mm-aaaa (también dd.mm.aa). Si el primer número es > 12 no puede
+  // ser mes; si el segundo es > 12 viene en formato gringo m/d/aaaa (ej: 7/13/2026).
   const local = texto.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})/);
   if (local) {
-    const [, dia, mes, anioRaw] = local.map(Number);
+    const [, primero, segundo, anioRaw] = local.map(Number);
+    const gringo = segundo > 12 && primero <= 12;
+    const dia = gringo ? segundo : primero;
+    const mes = gringo ? primero : segundo;
     const anio = anioRaw < 100 ? 2000 + anioRaw : anioRaw;
-    const fecha = new Date(anio, mes - 1, dia);
-    if (!isNaN(fecha.getTime())) return fecha;
+    if (dia >= 1 && dia <= 31 && mes >= 1 && mes <= 12) {
+      const fecha = new Date(anio, mes - 1, dia);
+      if (!isNaN(fecha.getTime())) return fecha;
+    }
   }
 
   return new Date();
