@@ -48,6 +48,50 @@ export interface FacturaData {
   tipoPlantilla?: 'nueva' | 'antigua';
 }
 
+// Interpreta la fecha que el usuario escribió en la plantilla masiva.
+// Acepta Date, serial de Excel, y texto tipo dd/mm/aaaa, dd-mm-aaaa o aaaa-mm-dd.
+// Si no se reconoce nada, cae en la fecha de hoy.
+export function parsearFecha(valor: unknown): Date {
+  if (valor instanceof Date && !isNaN(valor.getTime())) return valor;
+
+  // Celda con fórmula o rich text: ExcelJS entrega un objeto
+  if (valor && typeof valor === 'object') {
+    const obj = valor as { result?: unknown; text?: unknown };
+    if (obj.result !== undefined || obj.text !== undefined) {
+      return parsearFecha(obj.result ?? obj.text);
+    }
+  }
+
+  // Serial de Excel (días desde 1899-12-30)
+  if (typeof valor === 'number' && valor > 0) {
+    const fecha = new Date(Date.UTC(1899, 11, 30) + valor * 86400000);
+    if (!isNaN(fecha.getTime())) {
+      return new Date(fecha.getUTCFullYear(), fecha.getUTCMonth(), fecha.getUTCDate());
+    }
+  }
+
+  const texto = valor?.toString().trim() || '';
+
+  // aaaa-mm-dd (ISO)
+  const iso = texto.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (iso) {
+    const [, anio, mes, dia] = iso.map(Number);
+    const fecha = new Date(anio, mes - 1, dia);
+    if (!isNaN(fecha.getTime())) return fecha;
+  }
+
+  // dd/mm/aaaa o dd-mm-aaaa (también dd.mm.aa)
+  const local = texto.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})/);
+  if (local) {
+    const [, dia, mes, anioRaw] = local.map(Number);
+    const anio = anioRaw < 100 ? 2000 + anioRaw : anioRaw;
+    const fecha = new Date(anio, mes - 1, dia);
+    if (!isNaN(fecha.getTime())) return fecha;
+  }
+
+  return new Date();
+}
+
 // Calcula fecha de vencimiento según días de condición de pago
 function calcularFechaVcto(fecha: Date, diasPago: number = 30): Date {
   const vcto = new Date(fecha);
@@ -185,8 +229,8 @@ export async function generarFactura(
     setCellValue(ws, 'D15', 'OCA GLOBAL SERVICIOS TECNICOS CHILE, S.A.');
   }
 
-  // Fecha de emisión del documento
-  setCellValue(ws, 'L3', new Date());
+  // Fecha de emisión del documento: la que indicó el usuario
+  setCellValue(ws, 'L3', data.fecha);
 
   const buffer = await workbook.xlsx.writeBuffer();
   return new Blob([buffer], {
@@ -625,19 +669,7 @@ export async function parsearDatosExcel(buffer: ArrayBuffer): Promise<ResultadoP
     if (rowNumber === 1) return;
 
     try {
-      const fechaVal = getCellValue(row, 1);
-      const fechaStr = fechaVal?.toString() || '';
-
-      // Parsear fecha
-      let fecha: Date;
-      if (fechaStr.includes('/')) {
-        const [dia, mes, anio] = fechaStr.split('/').map(Number);
-        fecha = new Date(anio < 100 ? 2000 + anio : anio, mes - 1, dia);
-      } else if (fechaVal instanceof Date) {
-        fecha = fechaVal;
-      } else {
-        fecha = new Date();
-      }
+      const fecha = parsearFecha(getCellValue(row, 1));
 
       const getValue = (col: number): string => {
         const val = getCellValue(row, col);
